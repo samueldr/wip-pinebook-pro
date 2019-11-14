@@ -11,5 +11,5 @@ let
   inherit (pkgs) callPackage;
 in
 {
-  u-boot = callPackage ./u-boot.nix {};
+  u-boot = callPackage ./u-boot {};
 }
