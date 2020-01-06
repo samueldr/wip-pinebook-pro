@@ -23,4 +23,21 @@ $ ./build.sh
 $ lsblk /dev/mmcblk0 && sudo dd if=$(echo result/sd-image/*.img) of=/dev/mmcblk0 bs=8M oflag=direct status=progress
 ```
 
-The `build.sh` script transmits parameters to `nix-build`, so e.g. `-j0` can be used.
+The `build.sh` script transmits parameters to `nix-build`, so e.g. `-j0` can
+be used.
+
+Once built, this image is self-sufficient, meaning that it should already be
+booting, no need burn u-boot to it.
+
+Though, the current setup will dump the output to the serial console by
+default. This means that without serial output (or editing `nixos/sd-image-aarch64.nix`)
+only a flashing caret will be shown on the display during boot, and this may
+stay there for a while during the filesystem expansion process.
+
+## Note about cross-compilation
+
+This will automatically detect the need for cross-compiling or not.
+
+When cross-compiled, all caveats apply. Here this mainly means that the kernel
+will need to be re-compiled on the device on the first nixos-rebuild switch,
+while most other packages can be fetched from the cache.
