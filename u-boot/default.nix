@@ -37,6 +37,7 @@ in
     (pw "1194523" "07l19km7vq4xrrc3llcwxwh6k1cx5lj5vmmzml1ji8abqphwfin6")
     (pw "1194524" "071rval4r683d1wxh75nbf22qs554spq8rk0499z6zac0x8q1qvc")
     (pw "1194525" "0biiwimjp25abxqazqbpxx2wh90zgy3k786h484x9wsdvnv4yjl6")
+    (pw "1203678" "0l3l88cc9xkxkraql82pfgpx6nqn4dj7cvfaagh5pzfwkxyw0n3p")
   ];
 })
 .overrideAttrs(oldAttrs: {
