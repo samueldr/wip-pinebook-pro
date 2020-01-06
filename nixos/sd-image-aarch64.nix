@@ -19,8 +19,12 @@ in
   boot.kernelParams = [
     "cma=32M"
     #"console=ttyS0,115200n8" "console=ttyAMA0,115200n8" "console=tty0"
-    "console=ttyS2,1500000n8" "earlycon=uart8250,mmio32,0xff1a0000" "earlyprintk"
+    "console=tty0"
+    "console=ttyS2,1500000n8"
+    "earlycon=uart8250,mmio32,0xff1a0000" "earlyprintk"
   ];
+
+  services.mingetty.serialSpeed = [ 1500000 115200 57600 38400 9600 ];
 
   boot.initrd.availableKernelModules = [
   ];
