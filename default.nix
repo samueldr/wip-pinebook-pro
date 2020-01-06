@@ -1,15 +1,17 @@
 {
-  pkgs' ? import <nixpkgs> {}
+  pkgs ? import (builtins.fetchTarball "channel:nixos-19.09") {
+    overlays = [
+      (import ./overlay.nix)
+    ];
+  }
 }:
 
 let
-  pkgs = if builtins.currentSystem == "aarch64-linux"
-    then pkgs'
-    else pkgs'.pkgsCross.aarch64-multiplatform
+  pkgs' = if builtins.currentSystem == "aarch64-linux"
+    then pkgs
+    else pkgs.pkgsCross.aarch64-multiplatform
   ;
-
-  inherit (pkgs) callPackage;
 in
 {
-  u-boot = callPackage ./u-boot {};
+  pkgs = pkgs';
 }
