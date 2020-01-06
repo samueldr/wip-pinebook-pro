@@ -15,5 +15,5 @@
     (import ./overlay.nix)
   ];
 
-  boot.kernelPackages = pkgs.linuxPackages-pinebookpro;
+  boot.kernelPackages = pkgs.linuxPackages_pinebookpro;
 }

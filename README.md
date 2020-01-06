@@ -5,7 +5,7 @@ WIP stuff to get started on the pinebook pro.
 Assuming `/dev/mmcblk0` is an SD card.
 
 ```
-$ nix-build -A pkgs.u-boot-pinebookpro
+$ nix-build -A pkgs.uBootPinebookPro
 $ lsblk /dev/mmcblk0 && sudo dd if=result/idbloader.img of=/dev/mmcblk0 bs=512 seek=64 oflag=direct,sync && sudo dd if=result/u-boot.itb of=/dev/mmcblk0 bs=512 seek=16384 oflag=direct,sync
 ```
 
