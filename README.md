@@ -32,6 +32,10 @@ compatibility.
  * Suspend (or resume) fails.
  * Rebooting fails somewhere early in the u-boot SPL.
 
+### Tips
+
+The backlight can be controlled using `light` (`programs.light.enable`).
+
 ## Image build
 
 ```
