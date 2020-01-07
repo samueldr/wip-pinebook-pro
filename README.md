@@ -79,3 +79,15 @@ the eMMC as a boot device first.
 Alternatively, this u-boot can be installed to the eMMC.
 
 Installing to SPI has yet to be investigated.
+
+## Keyboard firmware
+
+As rebooting doesn't work here, poweroff and boot manually.
+
+```
+ $ nix-build -A pkgs.pinebookpro-keyboard-updater
+ $ sudo ./result/bin/updater step-1
+ $ sudo poweroff
+ # ...
+ $ sudo ./result/bin/updater step-2
+```
