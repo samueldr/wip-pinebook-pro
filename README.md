@@ -90,4 +90,5 @@ As rebooting doesn't work here, poweroff and boot manually.
  $ sudo poweroff
  # ...
  $ sudo ./result/bin/updater step-2
+ $ sudo poweroff
 ```
