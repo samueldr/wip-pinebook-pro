@@ -40,4 +40,9 @@
     "gpio_charger"
     "rtc_rk808"
   ];
+
+  hardware.enableRedistributableFirmware = true;
+  hardware.firmware = [
+    pkgs.pinebookpro-firmware
+  ];
 }
