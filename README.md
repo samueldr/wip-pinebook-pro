@@ -29,10 +29,8 @@ be used.
 Once built, this image is self-sufficient, meaning that it should already be
 booting, no need burn u-boot to it.
 
-Though, the current setup will dump the output to the serial console by
-default. This means that without serial output (or editing `nixos/sd-image-aarch64.nix`)
-only a flashing caret will be shown on the display during boot, and this may
-stay there for a while during the filesystem expansion process.
+The required modules (and maybe a bit more) are present in stage-1 so the
+display should start early enough in the boot process.
 
 ## Note about cross-compilation
 
