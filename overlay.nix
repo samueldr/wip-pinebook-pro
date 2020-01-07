@@ -34,4 +34,5 @@ in
     ];
   };
   linuxPackages_pinebookpro = linuxPackagesFor final.linux_pinebookpro;
+  pinebookpro-firmware = callPackage ./firmware {};
 }
