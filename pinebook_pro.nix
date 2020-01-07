@@ -41,6 +41,14 @@
     "rtc_rk808"
   ];
 
+  # https://gitlab.manjaro.org/manjaro-arm/packages/community/pinebookpro-post-install/blob/master/10-usb-kbd.hwdb
+  services.udev.extraHwdb = ''
+    evdev:input:b0003v258Ap001E*
+      KEYBOARD_KEY_700a5=brightnessdown
+      KEYBOARD_KEY_700a6=brightnessup
+      KEYBOARD_KEY_70066=sleep 
+  '';
+
   hardware.enableRedistributableFirmware = true;
   hardware.firmware = [
     pkgs.pinebookpro-firmware
