@@ -53,4 +53,7 @@
   hardware.firmware = [
     pkgs.pinebookpro-firmware
   ];
+
+  # The default powersave makes the wireless connection unusable.
+  networking.networkmanager.wifi.powersave = lib.mkDefault false;
 }
