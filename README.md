@@ -80,6 +80,17 @@ Alternatively, this u-boot can be installed to the eMMC.
 
 Installing to SPI has yet to be investigated.
 
+### Updating eMMC u-boot from NixOS
+
+**Caution:** this could render your system unbootable. Do this when you are in
+a situation where you can debug and fix the system if this happens. With this
+said, it should be safe enough.
+
+```
+$ nix-build -A pkgs.uBootPinebookPro
+$ lsblk /dev/disk/by-path/platform-fe330000.sdhci && sudo dd if=result/idbloader.img of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=64 oflag=direct,sync && sudo dd if=result/u-boot.itb of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=16384 oflag=direct,sync
+```
+
 ## Keyboard firmware
 
 As rebooting doesn't work here, poweroff and boot manually.
