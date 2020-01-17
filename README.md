@@ -90,6 +90,13 @@ $ nix-build -A pkgs.uBootPinebookPro
 $ lsblk /dev/disk/by-path/platform-fe330000.sdhci && sudo dd if=result/idbloader.img of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=64 oflag=direct,sync && sudo dd if=result/u-boot.itb of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=16384 oflag=direct,sync
 ```
 
+### Alternative boot order
+
+If you rather USB and SD card is tried before the eMMC, `pkgs.uBootPinebookProExternalFirst`
+can be installed, which has an alternative patch set added on top that will
+change the boot order.
+
+
 ## Keyboard firmware
 
 ```
