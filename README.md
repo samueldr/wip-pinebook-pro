@@ -30,7 +30,6 @@ compatibility.
 ### Known issues
 
  * Suspend (or resume) fails.
- * Rebooting fails somewhere early in the u-boot SPL.
 
 ### Tips
 
@@ -93,13 +92,11 @@ $ lsblk /dev/disk/by-path/platform-fe330000.sdhci && sudo dd if=result/idbloader
 
 ## Keyboard firmware
 
-As rebooting doesn't work here, poweroff and boot manually.
-
 ```
  $ nix-build -A pkgs.pinebookpro-keyboard-updater
  $ sudo ./result/bin/updater step-1
- $ sudo poweroff
+ $ sudo reboot
  # ...
  $ sudo ./result/bin/updater step-2
- $ sudo poweroff
+ $ sudo reboot
 ```
