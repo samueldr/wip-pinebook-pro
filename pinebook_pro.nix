@@ -54,6 +54,13 @@
     pkgs.pinebookpro-firmware
   ];
 
+  # Until suspend is fixed, this at least prevents the user from shooting
+  # themselves in the foot by suspending accidentally, then forced to restart
+  # the system forcibly..
+  systemd.tmpfiles.rules = [
+    "w /sys/power/mem_sleep - - - -  s2idle"
+  ];
+
   # The default powersave makes the wireless connection unusable.
   networking.networkmanager.wifi.powersave = lib.mkDefault false;
 }
