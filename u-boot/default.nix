@@ -38,6 +38,15 @@ in
     (pw "1194524" "071rval4r683d1wxh75nbf22qs554spq8rk0499z6zac0x8q1qvc")
     (pw "1194525" "0biiwimjp25abxqazqbpxx2wh90zgy3k786h484x9wsdvnv4yjl6")
     (pw "1203678" "0l3l88cc9xkxkraql82pfgpx6nqn4dj7cvfaagh5pzfwkxyw0n3p")
+
+    # Patches from this fork:
+    # https://git.eno.space/pbp-uboot.git
+    ./0001-rk3399-pinebook-fix-sdcard-boot-from-emmc.patch
+    ./0003-rk3399-light-pinebook-power-and-standby-leds-during-.patch
+    ./0004-reduce-pinebook_pro-bootdelay-to-1.patch
+    ./0005-PBP-Add-regulator-needed-for-usb.patch
+
+    # My own patch
     ./0001-HACK-Add-changing-LEDs-signal-at-boot-on-pinebook-pr.patch
   ];
 })
