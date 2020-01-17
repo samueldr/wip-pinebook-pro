@@ -1,9 +1,11 @@
 { buildUBoot
+, lib
 , python
 , armTrustedFirmwareRK3399
 , fetchpatch
 , fetchFromGitLab
 , fetchFromGitHub
+, externalFirst ? false
 }:
 
 let
@@ -48,6 +50,12 @@ in
 
     # My own patch
     ./0001-HACK-Add-changing-LEDs-signal-at-boot-on-pinebook-pr.patch
+
+  ] ++ lib.optionals (externalFirst) [
+    # Patches from this fork:
+    # https://git.eno.space/pbp-uboot.git
+    ./0002-rockchip-move-mmc1-before-mmc0-in-default-boot-order.patch
+    ./0006-rockchip-move-usb0-after-mmc1-in-default-boot-order.patch
   ];
 })
 .overrideAttrs(oldAttrs: {

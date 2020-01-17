@@ -7,6 +7,9 @@ in
   # Alternative BSP u-boot, with nvme support if desired
   #   * https://gitlab.manjaro.org/manjaro-arm/packages/core/uboot-pinebookpro
   uBootPinebookPro = callPackage ./u-boot {};
+  uBootPinebookProExternalFirst = callPackage ./u-boot {
+    externalFirst = true;
+  };
   linux_pinebookpro = callPackage ./kernel {
     kernelPatches = [
       kernelPatches.bridge_stp_helper
