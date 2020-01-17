@@ -51,7 +51,7 @@ booting, no need burn u-boot to it.
 The required modules (and maybe a bit more) are present in stage-1 so the
 display should start early enough in the boot process.
 
-The LED should start up "amber, red, amber, green, amber" with this u-boot
+The LED should start up with the amber colour ASAP with this u-boot
 configuration, as a way to show activity early. The kernel should set it to
 green as soon as it can.
 
