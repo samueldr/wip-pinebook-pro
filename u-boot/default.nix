@@ -17,10 +17,10 @@ let
     src = fetchFromGitHub {
       owner = "ARM-software";
       repo = "arm-trusted-firmware";
-      rev = "v2.2";
-      sha256 = "03fjl5hy1bqlya6fg553bqz7jrvilzrzpbs87cv6jd04v8qrvry8";
+      rev = "38aac6d4059ed11d6c977c9081a9bf4364227b5a";
+      sha256 = "0s08zrw0s0dvrc7229dwk6rzasrj3mrb71q232aiznnv9n5aszkz";
     };
-    version = "2.2";
+    version = "2019-01-16";
   });
 in
 (buildUBoot {
