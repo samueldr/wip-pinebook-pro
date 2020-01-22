@@ -22,6 +22,7 @@ compatibility.
  * X11 with modesetting
  * Wi-Fi
  * Brightness controls
+ * Speaker output
 
 ### Untested
 
