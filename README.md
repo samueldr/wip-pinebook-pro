@@ -105,9 +105,13 @@ the image to your eMMC keeps external devices bootable.
 
 ```
  $ nix-build -A pkgs.pinebookpro-keyboard-updater
- $ sudo ./result/bin/updater step-1
- $ sudo reboot
+ $ sudo ./result/bin/updater step-1 <iso|ansi>
+ $ sudo poweroff
  # ...
- $ sudo ./result/bin/updater step-2
- $ sudo reboot
+ $ sudo ./result/bin/updater step-2 <iso|ansi>
+ $ sudo poweroff
+ # ...
+ $ sudo ./result/bin/updater flash-kb-revised <iso|ansi>
 ```
+
+Note: poweroff must be used, reboot does not turn the hardware "off" enough.
