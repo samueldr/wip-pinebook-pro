@@ -97,6 +97,9 @@ If you rather USB and SD card is tried before the eMMC, `pkgs.uBootPinebookProEx
 can be installed, which has an alternative patch set added on top that will
 change the boot order.
 
+The SD image is built using the "alternative boot order" u-boot. Thus, flashing
+the image to your eMMC keeps external devices bootable.
+
 
 ## Keyboard firmware
 
