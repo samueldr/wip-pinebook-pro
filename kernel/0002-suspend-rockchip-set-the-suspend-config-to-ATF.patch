@@ -1,0 +1,358 @@
+From 5c140dbc1ebde72fcba086fb4c7a9e706e0af7b7 Mon Sep 17 00:00:00 2001
+From: Shengfei xu <xsf@rock-chips.com>
+Date: Thu, 5 Jan 2017 16:55:54 +0800
+Subject: [PATCH 2/5] suspend: rockchip: set the suspend config to ATF
+
+Change-Id: I400aa252c24b814e3da7fa6703a4e03a1c90d572
+Signed-off-by: Shengfei xu <xsf@rock-chips.com>
+---
+ .../soc/rockchip/rockchip-pm-config.txt       |  39 ++++++
+ drivers/firmware/rockchip_sip.c               |  13 +-
+ drivers/soc/rockchip/Kconfig                  |   6 +
+ drivers/soc/rockchip/Makefile                 |   1 +
+ drivers/soc/rockchip/rockchip_pm_config.c     | 120 ++++++++++++++++++
+ include/dt-bindings/suspend/rockchip-rk3399.h |  60 +++++++++
+ include/linux/rockchip/rockchip_sip.h         |  17 ++-
+ 7 files changed, 247 insertions(+), 9 deletions(-)
+ create mode 100644 Documentation/devicetree/bindings/soc/rockchip/rockchip-pm-config.txt
+ create mode 100644 drivers/soc/rockchip/rockchip_pm_config.c
+ create mode 100644 include/dt-bindings/suspend/rockchip-rk3399.h
+
+diff --git a/Documentation/devicetree/bindings/soc/rockchip/rockchip-pm-config.txt b/Documentation/devicetree/bindings/soc/rockchip/rockchip-pm-config.txt
+new file mode 100644
+index 000000000000..a8fd70f17597
+--- /dev/null
++++ b/Documentation/devicetree/bindings/soc/rockchip/rockchip-pm-config.txt
+@@ -0,0 +1,39 @@
++* the suspend mode config
++
++- compatible: "rockchip,pm-config"
++  Compatibility with rk3399
++
++- rockchip,sleep-mode-config : the sleep mode config,
++  ARMOFF, OSC disabled ...
++
++- rockchip,wakeup-config: the wake up sourece enable.
++  GPIO, USB, SD...
++
++- rockchip,pwm-regulator-config: the pwm regulator name.
++
++Example:
++	rockchip_suspend: rockchip_suspend {
++		compatible = "rockchip,pm-rk3399";
++		status = "okay";
++		rockchip,sleep-mode-config = <
++			(0
++			| RKPM_SLP_ARMPD
++			| RKPM_SLP_PERILPPD
++			| RKPM_SLP_DDR_RET
++			| RKPM_SLP_PLLPD
++			| RKPM_SLP_OSC_DIS
++			| RKPM_SLP_CENTER_PD
++			| RKPM_SLP_AP_PWROFF
++			)
++		>;
++		rockchip,wakeup-config = <
++			(0 |
++			RKPM_GPIO_WKUP_EN |
++			RKPM_PWM_WKUP_EN)
++		>;
++		rockchip,pwm-regulator-config = <
++			(0 |
++			PWM2_REGULATOR_EN
++			)
++		>;
++	};
+diff --git a/drivers/firmware/rockchip_sip.c b/drivers/firmware/rockchip_sip.c
+index f1d7e0cd981d..a7f2db58c21c 100644
+--- a/drivers/firmware/rockchip_sip.c
++++ b/drivers/firmware/rockchip_sip.c
+@@ -31,8 +31,8 @@ static struct arm_smccc_res __invoke_sip_fn_smc(unsigned long function_id,
+ 	return res;
+ }
+ 
+-struct arm_smccc_res sip_smc_ddr_cfg(uint32_t arg0, uint32_t arg1,
+-				     uint32_t arg2)
++struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1,
++				     u32 arg2)
+ {
+ 	return __invoke_sip_fn_smc(SIP_DDR_CFG32, arg0, arg1, arg2);
+ }
+@@ -47,11 +47,14 @@ struct arm_smccc_res sip_smc_get_sip_version(void)
+ 	return __invoke_sip_fn_smc(SIP_SIP_VERSION32, 0, 0, 0);
+ }
+ 
+-int sip_smc_set_suspend_mode(uint32_t mode)
++int sip_smc_set_suspend_mode(u32 ctrl,
++			     u32 config1,
++			     u32 config2)
+ {
+ 	struct arm_smccc_res res;
+ 
+-	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE32, mode, 0, 0);
++	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE32, ctrl,
++				  config1, config2);
+ 
+ 	return res.a0;
+ }
+@@ -128,7 +131,7 @@ int psci_fiq_debugger_set_print_port(u32 port, u32 baudrate)
+ 	struct arm_smccc_res res;
+ 
+ 	res = __invoke_sip_fn_smc(PSCI_SIP_UARTDBG_CFG64, port, baudrate,
+-			   UARTDBG_CFG_PRINT_PORT);
++				  UARTDBG_CFG_PRINT_PORT);
+ 	return res.a0;
+ }
+ 
+diff --git a/drivers/soc/rockchip/Kconfig b/drivers/soc/rockchip/Kconfig
+index b71b73bf5fc5..bfadbecd0df8 100644
+--- a/drivers/soc/rockchip/Kconfig
++++ b/drivers/soc/rockchip/Kconfig
+@@ -26,4 +26,10 @@ config ROCKCHIP_PM_DOMAINS
+ 
+           If unsure, say N.
+ 
++config ROCKCHIP_SUSPEND_MODE
++	bool "Rockchip suspend mode config"
++	depends on ROCKCHIP_SIP
++	help
++	  Say Y here if you want to set the suspend mode to the ATF.
++
+ endif
+diff --git a/drivers/soc/rockchip/Makefile b/drivers/soc/rockchip/Makefile
+index afca0a4c4b72..a15c0a395a33 100644
+--- a/drivers/soc/rockchip/Makefile
++++ b/drivers/soc/rockchip/Makefile
+@@ -4,3 +4,4 @@
+ #
+ obj-$(CONFIG_ROCKCHIP_GRF) += grf.o
+ obj-$(CONFIG_ROCKCHIP_PM_DOMAINS) += pm_domains.o
++obj-$(CONFIG_ROCKCHIP_SUSPEND_MODE) += rockchip_pm_config.o
+diff --git a/drivers/soc/rockchip/rockchip_pm_config.c b/drivers/soc/rockchip/rockchip_pm_config.c
+new file mode 100644
+index 000000000000..a649d6e7f082
+--- /dev/null
++++ b/drivers/soc/rockchip/rockchip_pm_config.c
+@@ -0,0 +1,120 @@
++/*
++ * Rockchip Generic power configuration support.
++ *
++ * Copyright (c) 2017 ROCKCHIP, Co. Ltd.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ */
++
++#include <linux/arm-smccc.h>
++#include <linux/bitops.h>
++#include <linux/cpu.h>
++#include <linux/of_gpio.h>
++#include <linux/platform_device.h>
++#include <linux/regulator/machine.h>
++#include <linux/rockchip/rockchip_sip.h>
++#include <linux/suspend.h>
++
++#define PM_INVALID_GPIO	0xffff
++
++static const struct of_device_id pm_match_table[] = {
++	{ .compatible = "rockchip,pm-rk3399",},
++	{ },
++};
++
++static int __init pm_config_init(struct platform_device *pdev)
++{
++	const struct of_device_id *match_id;
++	struct device_node *node;
++	u32 mode_config = 0;
++	u32 wakeup_config = 0;
++	u32 pwm_regulator_config = 0;
++	int gpio_temp[10];
++	u32 sleep_debug_en = 0;
++	u32 apios_suspend = 0;
++	enum of_gpio_flags flags;
++	int i = 0;
++	int length;
++
++	match_id = of_match_node(pm_match_table, pdev->dev.of_node);
++	if (!match_id)
++		return -ENODEV;
++
++	node = of_find_node_by_name(NULL, "rockchip-suspend");
++
++	if (IS_ERR_OR_NULL(node)) {
++		dev_err(&pdev->dev, "%s dev node err\n",  __func__);
++		return -ENODEV;
++	}
++
++	if (of_property_read_u32_array(node,
++				       "rockchip,sleep-mode-config",
++				       &mode_config, 1))
++		dev_warn(&pdev->dev, "not set sleep mode config\n");
++	else
++		sip_smc_set_suspend_mode(SUSPEND_MODE_CONFIG, mode_config, 0);
++
++	if (of_property_read_u32_array(node,
++				       "rockchip,wakeup-config",
++				       &wakeup_config, 1))
++		dev_warn(&pdev->dev, "not set wakeup-config\n");
++	else
++		sip_smc_set_suspend_mode(WKUP_SOURCE_CONFIG, wakeup_config, 0);
++
++	if (of_property_read_u32_array(node,
++				       "rockchip,pwm-regulator-config",
++				       &pwm_regulator_config, 1))
++		dev_warn(&pdev->dev, "not set pwm-regulator-config\n");
++	else
++		sip_smc_set_suspend_mode(PWM_REGULATOR_CONFIG,
++					 pwm_regulator_config,
++					 0);
++
++	length = of_gpio_named_count(node, "rockchip,power-ctrl");
++
++	if (length > 0 && length < 10) {
++		for (i = 0; i < length; i++) {
++			gpio_temp[i] = of_get_named_gpio_flags(node,
++							     "rockchip,power-ctrl",
++							     i,
++							     &flags);
++			if (!gpio_is_valid(gpio_temp[i]))
++				break;
++			sip_smc_set_suspend_mode(GPIO_POWER_CONFIG,
++						 i,
++						 gpio_temp[i]);
++		}
++	}
++	sip_smc_set_suspend_mode(GPIO_POWER_CONFIG, i, PM_INVALID_GPIO);
++
++	if (!of_property_read_u32_array(node,
++					"rockchip,sleep-debug-en",
++					&sleep_debug_en, 1))
++		sip_smc_set_suspend_mode(SUSPEND_DEBUG_ENABLE,
++					 sleep_debug_en,
++					 0);
++
++	if (!of_property_read_u32_array(node,
++					"rockchip,apios-suspend",
++					&apios_suspend, 1))
++		sip_smc_set_suspend_mode(APIOS_SUSPEND_CONFIG,
++					 apios_suspend,
++					 0);
++
++	return 0;
++}
++
++static struct platform_driver pm_driver = {
++	.driver = {
++		.name = "rockchip-pm",
++		.of_match_table = pm_match_table,
++	},
++};
++
++static int __init rockchip_pm_drv_register(void)
++{
++	return platform_driver_probe(&pm_driver, pm_config_init);
++}
++subsys_initcall(rockchip_pm_drv_register);
+diff --git a/include/dt-bindings/suspend/rockchip-rk3399.h b/include/dt-bindings/suspend/rockchip-rk3399.h
+new file mode 100644
+index 000000000000..0cccd6430ef6
+--- /dev/null
++++ b/include/dt-bindings/suspend/rockchip-rk3399.h
+@@ -0,0 +1,60 @@
++/*
++ * Header providing constants for Rockchip suspend bindings.
++ *
++ * Copyright (C) 2017, Fuzhou Rockchip Electronics Co., Ltd
++ * Author: Tony.Xie
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ */
++
++#ifndef __DT_BINDINGS_SUSPEND_ROCKCHIP_RK3399_H__
++#define __DT_BINDINGS_SUSPEND_ROCKCHIP_RK3399_H__
++
++/* the suspend mode */
++#define RKPM_SLP_WFI				(1 << 0)
++#define RKPM_SLP_ARMPD				(1 << 1)
++#define RKPM_SLP_PERILPPD			(1 << 2)
++#define RKPM_SLP_DDR_RET			(1 << 3)
++#define RKPM_SLP_PLLPD				(1 << 4)
++#define RKPM_SLP_OSC_DIS			(1 << 5)
++#define RKPM_SLP_CENTER_PD			(1 << 6)
++#define RKPM_SLP_AP_PWROFF			(1 << 7)
++
++/* the wake up source */
++#define RKPM_CLUSTER_L_WKUP_EN			(1 << 0)
++#define RKPM_CLUSTER_B_WKUPB_EN			(1 << 1)
++#define RKPM_GPIO_WKUP_EN			(1 << 2)
++#define RKPM_SDIO_WKUP_EN			(1 << 3)
++#define RKPM_SDMMC_WKUP_EN			(1 << 4)
++#define RKPM_TIMER_WKUP_EN			(1 << 6)
++#define RKPM_USB_WKUP_EN			(1 << 7)
++#define RKPM_SFT_WKUP_EN			(1 << 8)
++#define RKPM_WDT_M0_WKUP_EN			(1 << 9)
++#define RKPM_TIME_OUT_WKUP_EN			(1 << 10)
++#define RKPM_PWM_WKUP_EN			(1 << 11)
++#define RKPM_PCIE_WKUP_EN			(1 << 13)
++
++/* the pwm regulator */
++#define PWM0_REGULATOR_EN			(1 << 0)
++#define PWM1_REGULATOR_EN			(1 << 1)
++#define PWM2_REGULATOR_EN			(1 << 2)
++#define PWM3A_REGULATOR_EN			(1 << 3)
++#define PWM3B_REGULATOR_EN			(1 << 4)
++
++/* the APIO voltage domain */
++#define RKPM_APIO0_SUSPEND			(1 << 0)
++#define RKPM_APIO1_SUSPEND			(1 << 1)
++#define RKPM_APIO2_SUSPEND			(1 << 2)
++#define RKPM_APIO3_SUSPEND			(1 << 3)
++#define RKPM_APIO4_SUSPEND			(1 << 4)
++#define RKPM_APIO5_SUSPEND			(1 << 5)
++
++#endif
+diff --git a/include/linux/rockchip/rockchip_sip.h b/include/linux/rockchip/rockchip_sip.h
+index 8740a058772c..c49e74ae79e5 100644
+--- a/include/linux/rockchip/rockchip_sip.h
++++ b/include/linux/rockchip/rockchip_sip.h
+@@ -64,15 +64,24 @@ typedef enum {
+ #define UARTDBG_CFG_OSHDL_DEBUG_DISABLE	0xf5
+ #define UARTDBG_CFG_PRINT_PORT		0xf7
+ 
++#define SUSPEND_MODE_CONFIG		0x01
++#define WKUP_SOURCE_CONFIG		0x02
++#define PWM_REGULATOR_CONFIG		0x03
++#define GPIO_POWER_CONFIG		0x04
++#define SUSPEND_DEBUG_ENABLE		0x05
++#define APIOS_SUSPEND_CONFIG		0x06
++
+ /* struct arm_smccc_res: a0: error code; a1~a3: data */
+ /* SMC32 Calls */
+-int sip_smc_set_suspend_mode(uint32_t mode);
++int sip_smc_set_suspend_mode(u32 ctrl,
++			     u32 config1,
++			     u32 config2);
+ struct arm_smccc_res sip_smc_get_call_count(void);
+ struct arm_smccc_res sip_smc_get_atf_version(void);
+ struct arm_smccc_res sip_smc_get_sip_version(void);
+-struct arm_smccc_res sip_smc_ddr_cfg(uint32_t arg0, uint32_t arg1,
+-				     uint32_t arg2);
+-struct arm_smccc_res sip_smc_get_share_mem_page(uint32_t page_num,
++struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1,
++				     u32 arg2);
++struct arm_smccc_res sip_smc_get_share_mem_page(u32 page_num,
+ 						share_page_type_t page_type);
+ 
+ void psci_enable_fiq(void);
+-- 
+2.24.1
+

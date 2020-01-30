@@ -10,10 +10,37 @@ in
   uBootPinebookProExternalFirst = callPackage ./u-boot {
     externalFirst = true;
   };
+  kernelPatches = super.kernelPatches // {
+    rockchip-sip = {
+      name = "rockchip-sip";
+      patch = ./kernel/0001-firmware-rockchip-sip-add-rockchip-SIP-runtime-servi.patch;
+    };
+    rk3399-suspend = {
+      name = "rk3399-suspend";
+      patch = ./kernel/0002-suspend-rockchip-set-the-suspend-config-to-ATF.patch;
+    };
+    pbp-suspend-config = {
+      name = "pbp-suspend-config";
+      patch = ./kernel/0003-Configure-suspend-for-rk3399.patch;
+    };
+    rockchip-virtpoweroff = {
+      name = "rockchip-virtpoweroff";
+      patch = ./kernel/0004-soc-rockchip-add-virtual-poweroff-support.patch;
+    };
+    rockchip-update-sip = {
+      name = "rockchip-update-sip";
+      patch = ./kernel/0005-firmware-rockchip-update-sip-interface.patch;
+    };
+  };
   linux_pinebookpro = callPackage ./kernel {
     kernelPatches = [
       kernelPatches.bridge_stp_helper
       #kernelPatches.export_kernel_fpu_functions
+      kernelPatches.rockchip-sip
+      kernelPatches.rk3399-suspend
+      kernelPatches.pbp-suspend-config
+      kernelPatches.rockchip-virtpoweroff
+      kernelPatches.rockchip-update-sip
       {
         name = "pinebookpro-config-fixes";
         patch = null;

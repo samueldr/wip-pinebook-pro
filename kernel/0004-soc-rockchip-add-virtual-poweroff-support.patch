@@ -1,0 +1,193 @@
+From c313268bb4814c2763520f070382d881b5e754c2 Mon Sep 17 00:00:00 2001
+From: XiaoDong Huang <derrick.huang@rock-chips.com>
+Date: Mon, 6 Mar 2017 11:34:41 +0800
+Subject: [PATCH 4/5] soc: rockchip: add virtual poweroff support
+
+Change-Id: I79240fa936eee3e64eb74eb5d5cdc952c3b2ac9b
+Signed-off-by: XiaoDong Huang <derrick.huang@rock-chips.com>
+---
+ drivers/firmware/rockchip_sip.c           | 15 ++++
+ drivers/soc/rockchip/rockchip_pm_config.c | 92 +++++++++++++++++++++++
+ include/linux/rockchip/rockchip_sip.h     |  3 +
+ 3 files changed, 110 insertions(+)
+
+diff --git a/drivers/firmware/rockchip_sip.c b/drivers/firmware/rockchip_sip.c
+index a7f2db58c21c..05b529042003 100644
+--- a/drivers/firmware/rockchip_sip.c
++++ b/drivers/firmware/rockchip_sip.c
+@@ -18,6 +18,12 @@
+ #include <asm/smp_plat.h>
+ #include <uapi/linux/psci.h>
+ 
++#ifdef CONFIG_64BIT
++#define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN64_##name
++#else
++#define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN_##name
++#endif
++
+ #define SIZE_PAGE(n)	((n) << 12)
+ 
+ static struct arm_smccc_res __invoke_sip_fn_smc(unsigned long function_id,
+@@ -59,6 +65,15 @@ int sip_smc_set_suspend_mode(u32 ctrl,
+ 	return res.a0;
+ }
+ 
++int rk_psci_virtual_poweroff(void)
++{
++	struct arm_smccc_res res;
++
++	res = __invoke_sip_fn_smc(PSCI_FN_NATIVE(1_0, SYSTEM_SUSPEND),
++				  0, 0, 0);
++	return res.a0;
++}
++
+ static u64 ft_fiq_mem_phy;
+ static void __iomem *ft_fiq_mem_base;
+ static void (*psci_fiq_debugger_uart_irq_tf)(void *reg_base, u64 sp_el1);
+diff --git a/drivers/soc/rockchip/rockchip_pm_config.c b/drivers/soc/rockchip/rockchip_pm_config.c
+index a649d6e7f082..ac6d9977697a 100644
+--- a/drivers/soc/rockchip/rockchip_pm_config.c
++++ b/drivers/soc/rockchip/rockchip_pm_config.c
+@@ -16,6 +16,7 @@
+ #include <linux/regulator/machine.h>
+ #include <linux/rockchip/rockchip_sip.h>
+ #include <linux/suspend.h>
++#include <dt-bindings/input/input.h>
+ 
+ #define PM_INVALID_GPIO	0xffff
+ 
+@@ -24,6 +25,90 @@ static const struct of_device_id pm_match_table[] = {
+ 	{ },
+ };
+ 
++#define MAX_PWRKEY_NUMS		20
++#define MAX_NUM_KEYS		60
++
++struct rkxx_remote_key_table {
++	int scancode;
++	int keycode;
++};
++
++static int parse_ir_pwrkeys(unsigned int *pwrkey, int size, int *nkey)
++{
++	struct device_node *node;
++	struct device_node *child_node;
++	struct rkxx_remote_key_table key_table[MAX_NUM_KEYS];
++	int i;
++	int len = 0, nbuttons;
++	int num = 0;
++	u32 usercode, scancode;
++
++	for_each_node_by_name(node, "pwm") {
++		for_each_child_of_node(node, child_node) {
++			if (of_property_read_u32(child_node,
++						 "rockchip,usercode",
++						 &usercode))
++				break;
++
++			if (of_get_property(child_node,
++					    "rockchip,key_table",
++					    &len) == NULL ||
++			    len <= 0)
++				break;
++
++			len = len < sizeof(key_table) ? len : sizeof(key_table);
++			len /= sizeof(u32);
++			if (of_property_read_u32_array(child_node,
++						       "rockchip,key_table",
++						       (u32 *)key_table,
++						       len))
++				break;
++
++			nbuttons = len / 2;
++			for (i = 0; i < nbuttons && num < size; ++i) {
++				if (key_table[i].keycode == KEY_POWER) {
++					scancode = key_table[i].scancode;
++					pr_debug("usercode=%x, key=%x\n",
++						 usercode, scancode);
++					pwrkey[num] = (usercode & 0xffff) << 16;
++					pwrkey[num] |= (scancode & 0xff) << 8;
++					++num;
++				}
++			}
++		}
++	}
++
++	*nkey = num;
++
++	return num ? 0 : -1;
++}
++
++static void rockchip_pm_virt_pwroff_prepare(void)
++{
++	int error;
++	int i, nkey;
++	u32 power_key[MAX_PWRKEY_NUMS];
++
++	if ((parse_ir_pwrkeys(power_key, ARRAY_SIZE(power_key), &nkey))) {
++		pr_err("Parse ir powerkey code failed!\n");
++		return;
++	}
++
++	for (i = 0; i < nkey; ++i)
++		sip_smc_set_suspend_mode(VIRTUAL_POWEROFF, 1, power_key[i]);
++
++	regulator_suspend_prepare(PM_SUSPEND_MEM);
++
++	error = disable_nonboot_cpus();
++	if (error) {
++		pr_err("Disable nonboot cpus failed!\n");
++		return;
++	}
++
++	sip_smc_set_suspend_mode(VIRTUAL_POWEROFF, 0, 1);
++	rk_psci_virtual_poweroff();
++}
++
+ static int __init pm_config_init(struct platform_device *pdev)
+ {
+ 	const struct of_device_id *match_id;
+@@ -34,6 +119,7 @@ static int __init pm_config_init(struct platform_device *pdev)
+ 	int gpio_temp[10];
+ 	u32 sleep_debug_en = 0;
+ 	u32 apios_suspend = 0;
++	u32 virtual_poweroff_en = 0;
+ 	enum of_gpio_flags flags;
+ 	int i = 0;
+ 	int length;
+@@ -103,6 +189,12 @@ static int __init pm_config_init(struct platform_device *pdev)
+ 					 apios_suspend,
+ 					 0);
+ 
++	if (!of_property_read_u32_array(node,
++					"rockchip,virtual-poweroff",
++					&virtual_poweroff_en, 1) &&
++	    virtual_poweroff_en)
++		pm_power_off_prepare = rockchip_pm_virt_pwroff_prepare;
++
+ 	return 0;
+ }
+ 
+diff --git a/include/linux/rockchip/rockchip_sip.h b/include/linux/rockchip/rockchip_sip.h
+index c49e74ae79e5..d695490c8a48 100644
+--- a/include/linux/rockchip/rockchip_sip.h
++++ b/include/linux/rockchip/rockchip_sip.h
+@@ -70,12 +70,15 @@ typedef enum {
+ #define GPIO_POWER_CONFIG		0x04
+ #define SUSPEND_DEBUG_ENABLE		0x05
+ #define APIOS_SUSPEND_CONFIG		0x06
++#define VIRTUAL_POWEROFF		0x07
+ 
+ /* struct arm_smccc_res: a0: error code; a1~a3: data */
+ /* SMC32 Calls */
+ int sip_smc_set_suspend_mode(u32 ctrl,
+ 			     u32 config1,
+ 			     u32 config2);
++int rk_psci_virtual_poweroff(void);
++
+ struct arm_smccc_res sip_smc_get_call_count(void);
+ struct arm_smccc_res sip_smc_get_atf_version(void);
+ struct arm_smccc_res sip_smc_get_sip_version(void);
+-- 
+2.24.1
+

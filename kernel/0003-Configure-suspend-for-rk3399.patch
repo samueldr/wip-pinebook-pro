@@ -1,0 +1,122 @@
+From c8907e85b5a664fd86204200af4437129399e9ab Mon Sep 17 00:00:00 2001
+From: Jimmy Brisson <theotherjimmy@gmail.com>
+Date: Thu, 30 Jan 2020 11:08:53 -0600
+Subject: [PATCH 3/5] Configure suspend for rk3399
+
+---
+ .../boot/dts/rockchip/rk3399-pinebook-pro.dts | 35 +++++++++++++++++++
+ arch/arm64/boot/dts/rockchip/rk3399.dtsi      | 23 ++++++++++++
+ arch/arm64/configs/pinebook_pro_defconfig     |  3 ++
+ 3 files changed, 61 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
+index 39ceb4251d56..3144e023940d 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
++++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
+@@ -8,6 +8,7 @@
+ #include <dt-bindings/input/linux-event-codes.h>
+ #include <dt-bindings/pwm/pwm.h>
+ #include <dt-bindings/usb/pd.h>
++#include <dt-bindings/suspend/rockchip-rk3399.h>
+ //#include <dt-bindings/leds/common.h>
+ #include "rk3399.dtsi"
+ #include "rk3399-opp.dtsi"
+@@ -80,6 +81,12 @@ drm_logo: drm-logo@00000000 {
+ 		};
+ 	};
+ 
++  /* first 64k(0xff8c0000~0xff8d0000) for ddr and suspend */
++  iram: sram@ff8d0000 {
++    compatible = "mmio-sram";
++    reg = <0x0 0xff8d0000 0x0 0x20000>; /* 128k */
++  };
++
+ 	gpio-keys {
+ 		compatible = "gpio-keys";
+ 		autorepeat;
+@@ -1211,3 +1218,31 @@ vendor@7c0000 {
+ 		};
+ 	};
+ };
++
++&rockchip_suspend {
++  status = "okay";
++  rockchip,sleep-debug-en = <1>;
++  rockchip,sleep-mode-config = <
++    (0
++    | RKPM_SLP_ARMPD
++    | RKPM_SLP_PERILPPD
++    | RKPM_SLP_DDR_RET
++    | RKPM_SLP_PLLPD
++    | RKPM_SLP_CENTER_PD
++    | RKPM_SLP_AP_PWROFF
++    )
++  >;
++  rockchip,wakeup-config = <
++    (0
++    | RKPM_GPIO_WKUP_EN
++    )
++  >;
++  rockchip,pwm-regulator-config = <
++    (0
++    | PWM2_REGULATOR_EN
++    )
++  >;
++  rockchip,power-ctrl =
++    <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>,
++    <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
++};
+diff --git a/arch/arm64/boot/dts/rockchip/rk3399.dtsi b/arch/arm64/boot/dts/rockchip/rk3399.dtsi
+index e62ea0e2b657..24d0d4187d89 100644
+--- a/arch/arm64/boot/dts/rockchip/rk3399.dtsi
++++ b/arch/arm64/boot/dts/rockchip/rk3399.dtsi
+@@ -10,6 +10,7 @@
+ #include <dt-bindings/pinctrl/rockchip.h>
+ #include <dt-bindings/power/rk3399-power.h>
+ #include <dt-bindings/thermal/thermal.h>
++#include <dt-bindings/suspend/rockchip-rk3399.h>
+ 
+ / {
+ 	compatible = "rockchip,rk3399";
+@@ -2652,4 +2653,26 @@ pcie_clkreqnb_cpm: pci-clkreqnb-cpm {
+ 		};
+ 
+ 	};
++  rockchip_suspend: rockchip-suspend {
++    compatible = "rockchip,pm-rk3399";
++    status = "disabled";
++    rockchip,sleep-debug-en = <0>;
++    rockchip,virtual-poweroff = <0>;
++    rockchip,sleep-mode-config = <
++      (0
++      | RKPM_SLP_ARMPD
++      | RKPM_SLP_PERILPPD
++      | RKPM_SLP_DDR_RET
++      | RKPM_SLP_PLLPD
++      | RKPM_SLP_OSC_DIS
++      | RKPM_SLP_CENTER_PD
++      | RKPM_SLP_AP_PWROFF
++      )
++    >;
++    rockchip,wakeup-config = <
++      (0
++      | RKPM_GPIO_WKUP_EN
++      )
++    >;
++  };
+ };
+diff --git a/arch/arm64/configs/pinebook_pro_defconfig b/arch/arm64/configs/pinebook_pro_defconfig
+index 884f07fcc590..fa34cf79dc60 100644
+--- a/arch/arm64/configs/pinebook_pro_defconfig
++++ b/arch/arm64/configs/pinebook_pro_defconfig
+@@ -1,4 +1,7 @@
+ CONFIG_LOCALVERSION="-MANJARO-ARM"
++CONFIG_ROCKCHIP_SUSPENND_MODE=y
++CONFIG_ROCKCHIP_SIP=y
++CONFIG_ARM_PSCI_FW=y
+ # CONFIG_LOCALVERSION_AUTO is not set
+ CONFIG_SYSVIPC=y
+ CONFIG_POSIX_MQUEUE=y
+-- 
+2.24.1
+
