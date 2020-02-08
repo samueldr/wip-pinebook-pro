@@ -59,6 +59,8 @@ in
           USB_DWC2_PCI y
           ROCKCHIP_LVDS y
           ROCKCHIP_RGB y
+          ROCKCHIP_SIP y
+          ROCKCHIP_SUSPEND_MODE y
         '';
       }
     ];
