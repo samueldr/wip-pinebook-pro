@@ -17,7 +17,7 @@ let
 in
 (
   buildLinux (args // rec {
-    version = "5.5.0-rc7";
+    version = "5.5.0";
 
     # modDirVersion needs to be x.y.z, will automatically add .0 if needed
     modDirVersion = if (modDirVersionArg == null) then concatStrings (intersperse "." (take 3 (splitString "." "${version}.0"))) else modDirVersionArg;
@@ -29,8 +29,8 @@ in
       domain = "gitlab.manjaro.org";
       owner = "tsys";
       repo = "linux-pinebook-pro";
-      rev = "b3ba5b2b87e9bd191265776b93277e49d044b79e";
-      sha256 = "1fj6gkpy422lw23qg0hwyv5hbfx3pfhgv67ma44ly2mxmgna4nsh";
+      rev = "799b9141e48783a0844187ad00855b3d53f77998";
+      sha256 = "1h75m5mb69hl0dqb1w5qrn6dzaak4dx7b2dxkk9d3990i796hrfs";
     };
 
     postInstall = (optionalString (args ? postInstall) args.postInstall) + ''
