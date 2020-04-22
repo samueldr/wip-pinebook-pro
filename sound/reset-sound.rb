@@ -213,7 +213,7 @@ FINAL_STATE = {
   ##   Capabilities: pswitch pswitch-joined
   ##   Playback channels: Mono
   ##   Mono: Playback [off]
-  "Right Headphone Mixer Right DAC,0" => "off",
+  "Right Headphone Mixer Right DAC,0" => "on",
   ## Simple mixer control 'Right Headphone Mux',0
   ##   Capabilities: enum
   ##   Items: 'lin1-rin1' 'lin2-rin2' 'lin-rin with Boost' 'lin-rin with Boost and PGA'
