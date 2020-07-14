@@ -67,6 +67,7 @@ in
 
     ./0001-rk3399-light-pinebook-power-and-standby-leds-during-.patch
     ./0002-reduce-pinebook_pro-bootdelay-to-1.patch
+    ./0005-support-SPI-flash-boot.patch
 
     # samueldr's patchset
     # -------------------
@@ -86,6 +87,11 @@ in
 
   postPatch = oldAttrs.postPatch + ''
     patchShebangs arch/arm/mach-rockchip/
+  '';
+
+  postInstall = ''
+    tools/mkimage -n rk3399 -T rkspi -d tpl/u-boot-tpl-dtb.bin:spl/u-boot-spl-dtb.bin spl.bin
+    cat <(dd if=spl.bin bs=512K conv=sync) u-boot.itb > $out/u-boot.spiflash.bin
   '';
 
   src = fetchFromGitLab {

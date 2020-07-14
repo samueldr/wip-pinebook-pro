@@ -1,0 +1,53 @@
+From f091aa06bfd4f7f9066dabe7a7caf268cd9c6683 Mon Sep 17 00:00:00 2001
+From: dhivael <dhivael.git@eno.space>
+Date: Thu, 6 Feb 2020 22:34:34 +0100
+Subject: [PATCH] support SPI flash boot
+
+SPI uboot images can be built with
+
+  tools/mkimage -n rk3399 -T rkspi -d tpl/u-boot-tpl-dtb.bin:spl/u-boot-spl-dtb.bin spl.bin
+  cat <(dd if=spl.bin bs=512K conv=sync) u-boot.itb >spiflash.bin
+
+and written to spi flash with uboot sf commands, any hardware flasher
+available, rkdeveloptool, or possibly other methods.
+
+Origin: https://git.eno.space/pbp-uboot.git/commit/?id=3d3dbebfe8726cf2ae51ed44dc49bbc497d62ac5
+---
+ arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi |  2 +-
+ configs/pinebook-pro-rk3399_defconfig        | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
+index f3d85e1dba1..a40b71fa204 100644
+--- a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
++++ b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
+@@ -12,7 +12,7 @@
+ 	};
+ 
+ 	chosen {
+-		u-boot,spl-boot-order = "same-as-spl", &sdhci, &sdmmc;
++		u-boot,spl-boot-order = "same-as-spl", &spiflash, &sdhci, &sdmmc;
+ 	};
+ };
+ 
+diff --git a/configs/pinebook-pro-rk3399_defconfig b/configs/pinebook-pro-rk3399_defconfig
+index 733463556a2..dbbd43ed9f3 100644
+--- a/configs/pinebook-pro-rk3399_defconfig
++++ b/configs/pinebook-pro-rk3399_defconfig
+@@ -85,3 +85,13 @@ CONFIG_VIDEO_ROCKCHIP=y
+ CONFIG_DISPLAY_ROCKCHIP_EDP=y
+ CONFIG_SPL_TINY_MEMSET=y
+ CONFIG_ERRNO_STR=y
++ 
++# SPI boot Support
++CONFIG_MTD=y
++CONFIG_DM_MTD=y
++CONFIG_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPL_DM_SPI=y
++CONFIG_SPL_SPI_FLASH_TINY=n
++CONFIG_SPL_SPI_FLASH_SFDP_SUPPORT=y
++CONFIG_SPL_SPI_LOAD=y
++CONFIG_SYS_SPI_U_BOOT_OFFS=0x80000
+-- 
+2.25.4
+
