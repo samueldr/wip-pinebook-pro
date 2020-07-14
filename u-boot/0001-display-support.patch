@@ -1,0 +1,352 @@
+From d369b1078e33ff6ffdf43782bf1552f0903dd087 Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Wed, 8 Jul 2020 21:42:59 -0400
+Subject: [PATCH 1/4] drivers/video/rockchip/rk_vop.c: Find VOP mode according
+ to endpoint compatible string
+
+The current code is using an hard coded enum and the of node reg value of endpoint to
+find out if the endpoint is mipi/hdmi/lvds/edp/dp. The order is different between
+rk3288, rk3399 vop little, rk3399 vop big.
+A possible solution would be to make sure that the rk3288.dtsi and rk3399.dtsi files
+have "expected" reg value or an other solution is to find the kind of endpoint by
+comparing the endpoint compatible value.
+
+This patch is implementing the more flexible second solution.
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200706/patches/dts_vop_mode.patch
+---
+ .../include/asm/arch-rockchip/vop_rk3288.h    | 15 +----------
+ drivers/video/rockchip/rk_vop.c               | 25 +++++++++++++++++--
+ 2 files changed, 24 insertions(+), 16 deletions(-)
+
+diff --git a/arch/arm/include/asm/arch-rockchip/vop_rk3288.h b/arch/arm/include/asm/arch-rockchip/vop_rk3288.h
+index 872a158b714..bf19e059977 100644
+--- a/arch/arm/include/asm/arch-rockchip/vop_rk3288.h
++++ b/arch/arm/include/asm/arch-rockchip/vop_rk3288.h
+@@ -85,26 +85,13 @@ enum {
+ 	LB_RGB_1280X8 = 0x5
+ };
+ 
+-#if defined(CONFIG_ROCKCHIP_RK3399)
+ enum vop_modes {
+ 	VOP_MODE_EDP = 0,
+ 	VOP_MODE_MIPI,
+ 	VOP_MODE_HDMI,
+-	VOP_MODE_MIPI1,
+-	VOP_MODE_DP,
+-	VOP_MODE_NONE,
+-};
+-#else
+-enum vop_modes {
+-	VOP_MODE_EDP = 0,
+-	VOP_MODE_HDMI,
+ 	VOP_MODE_LVDS,
+-	VOP_MODE_MIPI,
+-	VOP_MODE_NONE,
+-	VOP_MODE_AUTO_DETECT,
+-	VOP_MODE_UNKNOWN,
++	VOP_MODE_DP,
+ };
+-#endif
+ 
+ /* VOP_VERSION_INFO */
+ #define M_FPGA_VERSION (0xffff << 16)
+diff --git a/drivers/video/rockchip/rk_vop.c b/drivers/video/rockchip/rk_vop.c
+index 9032eb430e7..6cd4ccc97a0 100644
+--- a/drivers/video/rockchip/rk_vop.c
++++ b/drivers/video/rockchip/rk_vop.c
+@@ -235,12 +235,11 @@ static int rk_display_init(struct udevice *dev, ulong fbbase, ofnode ep_node)
+ 	struct clk clk;
+ 	enum video_log2_bpp l2bpp;
+ 	ofnode remote;
++	const char *compat;
+ 
+ 	debug("%s(%s, %lu, %s)\n", __func__,
+ 	      dev_read_name(dev), fbbase, ofnode_get_name(ep_node));
+ 
+-	vop_id = ofnode_read_s32_default(ep_node, "reg", -1);
+-	debug("vop_id=%d\n", vop_id);
+ 	ret = ofnode_read_u32(ep_node, "remote-endpoint", &remote_phandle);
+ 	if (ret)
+ 		return ret;
+@@ -282,6 +281,28 @@ static int rk_display_init(struct udevice *dev, ulong fbbase, ofnode ep_node)
+ 		if (disp)
+ 			break;
+ 	};
++	compat = ofnode_get_property(remote, "compatible", NULL);
++	if (!compat) {
++		debug("%s(%s): Failed to find compatible property\n",
++		      __func__, dev_read_name(dev));
++		return -EINVAL;
++	}
++	if (strstr(compat, "edp")) {
++		vop_id = VOP_MODE_EDP;
++	} else if (strstr(compat, "mipi")) {
++		vop_id = VOP_MODE_MIPI;
++	} else if (strstr(compat, "hdmi")) {
++		vop_id = VOP_MODE_HDMI;
++	} else if (strstr(compat, "cdn-dp")) {
++		vop_id = VOP_MODE_DP;
++	} else if (strstr(compat, "lvds")) {
++		vop_id = VOP_MODE_LVDS;
++	} else {
++		debug("%s(%s): Failed to find vop mode for %s\n",
++		      __func__, dev_read_name(dev), compat);
++		return -EINVAL;
++	}
++	debug("vop_id=%d\n", vop_id);
+ 
+ 	disp_uc_plat = dev_get_uclass_platdata(disp);
+ 	debug("Found device '%s', disp_uc_priv=%p\n", disp->name, disp_uc_plat);
+-- 
+2.25.4
+
+
+From e4343fec440d3f268ee1a6217967c14d03f440dd Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Wed, 8 Jul 2020 21:43:21 -0400
+Subject: [PATCH 2/4] drivers/video/rockchip/rk_edp.c: Add rk3399 support
+
+According to linux commit 82872e42bb1501dd9e60ca430f4bae45a469aa64,
+rk3288 and rk3399 eDP IPs are nearly the same, the difference is in the grf register
+(SOC_CON6 versus SOC_CON20). So, change the code to use the right
+register on each IP.
+
+The clocks don't seem to be the same, the eDP clock is not at index 1 on rk3399,
+so don't try changing the clock at index 1 to rate 0 on rk399. Also, enable all
+clocks, in case it's needed.
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200706/patches/rk_edp_rk3399.patch
+---
+ .../include/asm/arch-rockchip/edp_rk3288.h    |  5 ++-
+ drivers/video/rockchip/rk_edp.c               | 40 ++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/include/asm/arch-rockchip/edp_rk3288.h b/arch/arm/include/asm/arch-rockchip/edp_rk3288.h
+index 105a335daba..c861f0eab18 100644
+--- a/arch/arm/include/asm/arch-rockchip/edp_rk3288.h
++++ b/arch/arm/include/asm/arch-rockchip/edp_rk3288.h
+@@ -232,8 +232,9 @@ check_member(rk3288_edp, pll_reg_5, 0xa00);
+ #define PD_CH0					(0x1 << 0)
+ 
+ /* pll_reg_1 */
+-#define REF_CLK_24M				(0x1 << 1)
+-#define REF_CLK_27M				(0x0 << 1)
++#define REF_CLK_24M				(0x1 << 0)
++#define REF_CLK_27M				(0x0 << 0)
++#define REF_CLK_MASK				(0x1 << 0)
+ 
+ /* line_map */
+ #define LANE3_MAP_LOGIC_LANE_0			(0x0 << 6)
+diff --git a/drivers/video/rockchip/rk_edp.c b/drivers/video/rockchip/rk_edp.c
+index 000bd481408..2a1ad6464b2 100644
+--- a/drivers/video/rockchip/rk_edp.c
++++ b/drivers/video/rockchip/rk_edp.c
+@@ -17,11 +17,17 @@
+ #include <asm/gpio.h>
+ #include <asm/io.h>
+ #include <asm/arch-rockchip/clock.h>
++#include <asm/arch-rockchip/hardware.h>
+ #include <asm/arch-rockchip/edp_rk3288.h>
++#if defined(CONFIG_ROCKCHIP_RK3288)
+ #include <asm/arch-rockchip/grf_rk3288.h>
+-#include <asm/arch-rockchip/hardware.h>
+ #include <dt-bindings/clock/rk3288-cru.h>
+ #include <linux/delay.h>
++#endif
++#if defined(CONFIG_ROCKCHIP_RK3399)
++#include <asm/arch-rockchip/grf_rk3399.h>
++#include <dt-bindings/clock/rk3399-cru.h>
++#endif
+ 
+ #define MAX_CR_LOOP 5
+ #define MAX_EQ_LOOP 5
+@@ -39,7 +45,12 @@ static const char * const pre_emph_names[] = {
+ 
+ struct rk_edp_priv {
+ 	struct rk3288_edp *regs;
++#if defined(CONFIG_ROCKCHIP_RK3288)
+ 	struct rk3288_grf *grf;
++#endif
++#if defined(CONFIG_ROCKCHIP_RK3399)
++	struct rk3399_grf_regs *grf;
++#endif
+ 	struct udevice *panel;
+ 	struct link_train link_train;
+ 	u8 train_set[4];
+@@ -48,7 +59,12 @@ struct rk_edp_priv {
+ static void rk_edp_init_refclk(struct rk3288_edp *regs)
+ {
+ 	writel(SEL_24M, &regs->analog_ctl_2);
+-	writel(REF_CLK_24M, &regs->pll_reg_1);
++	u32 reg = REF_CLK_24M;
++#if defined(CONFIG_ROCKCHIP_RK3288)
++	reg ^= REF_CLK_MASK;
++#endif
++	writel(reg, &regs->pll_reg_1);
++
+ 
+ 	writel(LDO_OUTPUT_V_SEL_145 | KVCO_DEFALUT | CHG_PUMP_CUR_SEL_5US |
+ 	       V2L_CUR_SEL_1MA, &regs->pll_reg_2);
+@@ -1037,6 +1053,7 @@ static int rk_edp_probe(struct udevice *dev)
+ 	int vop_id = uc_plat->source_id;
+ 	debug("%s, uc_plat=%p, vop_id=%u\n", __func__, uc_plat, vop_id);
+ 
++#if defined(CONFIG_ROCKCHIP_RK3288)
+ 	ret = clk_get_by_index(dev, 1, &clk);
+ 	if (ret >= 0) {
+ 		ret = clk_set_rate(&clk, 0);
+@@ -1046,6 +1063,7 @@ static int rk_edp_probe(struct udevice *dev)
+ 		debug("%s: Failed to set EDP clock: ret=%d\n", __func__, ret);
+ 		return ret;
+ 	}
++#endif
+ 
+ 	ret = clk_get_by_index(uc_plat->src_dev, 0, &clk);
+ 	if (ret >= 0) {
+@@ -1058,12 +1076,25 @@ static int rk_edp_probe(struct udevice *dev)
+ 		return ret;
+ 	}
+ 
++#if defined(CONFIG_ROCKCHIP_RK3288)
+ 	/* grf_edp_ref_clk_sel: from internal 24MHz or 27MHz clock */
+ 	rk_setreg(&priv->grf->soc_con12, 1 << 4);
+ 
+ 	/* select epd signal from vop0 or vop1 */
+ 	rk_clrsetreg(&priv->grf->soc_con6, (1 << 5),
+ 	    (vop_id == 1) ? (1 << 5) : (0 << 5));
++#endif
++#if defined(CONFIG_ROCKCHIP_RK3399)
++	/* edp_ref_clk_sel : works like for 3288 ? */
++	rk_setreg(&priv->grf->soc_con25, 1 << 11);
++	/*
++	 * select epd signal from
++	 * id == 0 -> vop big
++	 * id == 1 -> vop little
++	 */
++	rk_clrsetreg(&priv->grf->soc_con20, (1 << 5),
++	    (vop_id == 1) ? (1 << 5) : (0 << 5));
++#endif
+ 
+ 	rockchip_edp_wait_hpd(priv);
+ 
+@@ -1084,7 +1115,12 @@ static const struct dm_display_ops dp_rockchip_ops = {
+ };
+ 
+ static const struct udevice_id rockchip_dp_ids[] = {
++#if defined(CONFIG_ROCKCHIP_RK3288)
+ 	{ .compatible = "rockchip,rk3288-edp" },
++#endif
++#if defined(CONFIG_ROCKCHIP_RK3399)
++	{ .compatible = "rockchip,rk3399-edp" },
++#endif
+ 	{ }
+ };
+ 
+-- 
+2.25.4
+
+
+From 5404da7ba1930137adc50e5dd5cfc4ef3974dc9e Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Wed, 8 Jul 2020 21:43:28 -0400
+Subject: [PATCH 3/4] rk3399-pinebook-pro-u-boot.dtsi: Enable RNG and edp
+
+- uboot rockchip edp code is looking for a rockchip,panel property
+  for the edp dts node, so add it.
+- enable RNG device.
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200706/patches/update_pinebook_pro_uboot_dtsi.patch
+---
+ arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
+index 296321d6975..f3d85e1dba1 100644
+--- a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
++++ b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
+@@ -45,3 +45,12 @@
+ &vdd_log {
+ 	regulator-init-microvolt = <950000>;
+ };
++
++&edp {
++	rockchip,panel = <&edp_panel>;
++};
++
++&rng {
++	status = "okay";
++};
++
+-- 
+2.25.4
+
+
+From 352cb7b28bf4a16330f148043e8d10b0141bbfcb Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Wed, 8 Jul 2020 21:43:36 -0400
+Subject: [PATCH 4/4] PBP: Fix panel reset
+
+On warm reset, the pinebook pro panel is not working correctly.
+The issue is not yet debugged so, for now, this hack seems to be
+enough. It toggles the GPIO1_C6 gpio [ LCDVCC_EN signal in the
+schematics ] used by the vcc3v3_panel regulator.
+
+There's no gpio_request, since the gpio is already in use at this
+stage, so it can only fail.
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200706/patches/hack-reset.patch
+---
+ board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c b/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c
+index 516292aaa59..ff9c916bcb7 100644
+--- a/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c
++++ b/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c
+@@ -7,13 +7,15 @@
+ #include <common.h>
+ #include <dm.h>
+ #include <syscon.h>
++#include <linux/delay.h>
++#include <asm/gpio.h>
+ #include <asm/io.h>
+ #include <asm/arch-rockchip/clock.h>
+ #include <asm/arch-rockchip/grf_rk3399.h>
++#include <asm/arch-rockchip/gpio.h>
+ #include <asm/arch-rockchip/hardware.h>
+ #include <asm/arch-rockchip/misc.h>
+ #include <power/regulator.h>
+-
+ #define GRF_IO_VSEL_BT565_SHIFT 0
+ #define PMUGRF_CON0_VSEL_SHIFT 8
+ 
+@@ -59,6 +61,7 @@ int misc_init_r(void)
+ 	const u32 cpuid_length = 0x10;
+ 	u8 cpuid[cpuid_length];
+ 	int ret;
++	unsigned int gpio;
+ 
+ 	setup_iodomain();
+ 
+@@ -70,6 +73,11 @@ int misc_init_r(void)
+ 	if (ret)
+ 		return ret;
+ 
++	gpio_lookup_name("B22", NULL, NULL, &gpio);
++	gpio_direction_output(gpio, 0);
++	udelay(500000);
++	gpio_direction_output(gpio, 1);
++
+ 	return ret;
+ }
+ #endif
+-- 
+2.25.4
+

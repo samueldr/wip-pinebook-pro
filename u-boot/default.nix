@@ -49,6 +49,16 @@ in
     (pw "1305441" "1my6vz2j7dp6k9qdyf4kzyfy2fgvj4bhxq0xnjkdvsasiz7rq2x9")
     # SPI has been skipped as it seemed to cause issues.
 
+    # Upcoming patches
+    # ----------------
+    #
+    # These are not yet available on Patchwork. They are of *beta* quality.
+    # http://people.hupstream.com/~rtp/pbp/20200706/patches/series
+    #
+    # I have been authorised to distribute.
+    #
+    ./0001-display-support.patch
+
     # Dhivael patchset
     # ----------------
     #
