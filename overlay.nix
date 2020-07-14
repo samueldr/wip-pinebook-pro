@@ -12,6 +12,11 @@ in
     externalFirst = true;
   };
 
+  # Image to be written to SD to install to SPI.
+  pinebookpro-firmware-installer = callPackage ./u-boot/spi-installer.nix {
+    uboot = final.uBootPinebookPro;
+  };           
+
   # The unqualified kernel attr is deprecated.
   linux_pinebookpro = throw "The linux_pinebookpro attribute has been replaced by linux_pinebookpro_latest.";
   linuxPackages_pinebookpro = throw "The linuxPackages_pinebookpro attribute has been replaced by linuxPackages_pinebookpro_latest.";
