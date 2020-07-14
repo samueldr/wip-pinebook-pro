@@ -9,5 +9,8 @@ PS4=" $ "
 # way to go.
 
 set -x
-exec env -i NIXPKGS_ALLOW_UNFREE=1 NIX_PATH="nixpkgs=channel:nixos-19.09" nix-build \
-  system.nix -A config.system.build.sdImage "$@"
+exec env -i \
+	NIXPKGS_ALLOW_UNFREE=1 \
+	NIX_PATH="nixpkgs=channel:nixos-unstable" \
+	"$(command -v nix-build)" \
+	system.nix -A config.system.build.sdImage "$@"
