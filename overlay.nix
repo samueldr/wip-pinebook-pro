@@ -15,12 +15,7 @@ in
   linux_pinebookpro = throw "The linux_pinebookpro attribute has been replaced by linux_pinebookpro_latest.";
   linuxPackages_pinebookpro = throw "The linuxPackages_pinebookpro attribute has been replaced by linuxPackages_pinebookpro_latest.";
 
-  linux_pinebookpro_latest = callPackage ./kernel/latest {
-    kernelPatches = [
-      kernelPatches.bridge_stp_helper
-      kernelPatches.export_kernel_fpu_functions."5.3"
-    ];
-  };
+  linux_pinebookpro_latest = callPackage ./kernel/latest { kernelPatches = []; };
   linuxPackages_pinebookpro_latest = linuxPackagesFor final.linux_pinebookpro_latest;
 
   pinebookpro-firmware = callPackage ./firmware {};
