@@ -1,5 +1,5 @@
 {
-  pkgs ? import (builtins.fetchTarball "channel:nixos-19.09") {
+  pkgs ? import <nixpkgs> {
     overlays = [
       (import ./overlay.nix)
     ];

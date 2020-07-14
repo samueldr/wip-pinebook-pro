@@ -19,14 +19,14 @@ let
     src = fetchFromGitHub {
       owner = "ARM-software";
       repo = "arm-trusted-firmware";
-      rev = "38aac6d4059ed11d6c977c9081a9bf4364227b5a";
-      sha256 = "0s08zrw0s0dvrc7229dwk6rzasrj3mrb71q232aiznnv9n5aszkz";
+      rev = "9935047b2086faa3bf3ccf0b95a76510eb5a160b";
+      sha256 = "1a6pm0nbgm5r3a41nwlkrli90l2blcijb02li7h75xcri6rb7frk";
     };
-    version = "2019-01-16";
+    version = "2020-06-17";
   });
 in
 (buildUBoot {
-  defconfig = "pinebook_pro-rk3399_defconfig";
+  defconfig = "pinebook-pro-rk3399_defconfig";
   extraMeta.platforms = ["aarch64-linux"];
   BL31 = "${atf}/bl31.elf";
   filesToInstall = [
@@ -36,32 +36,31 @@ in
   ];
 
   extraPatches = [
-    (pw "1194523" "07l19km7vq4xrrc3llcwxwh6k1cx5lj5vmmzml1ji8abqphwfin6")
-    (pw "1194524" "071rval4r683d1wxh75nbf22qs554spq8rk0499z6zac0x8q1qvc")
-    (pw "1194525" "0biiwimjp25abxqazqbpxx2wh90zgy3k786h484x9wsdvnv4yjl6")
-    (pw "1203678" "0l3l88cc9xkxkraql82pfgpx6nqn4dj7cvfaagh5pzfwkxyw0n3p")
+    # Dhivael patchset
+    # ----------------
+    #
+    # Origin: https://git.eno.space/pbp-uboot.git/
+    # Forward ported to 2020.07
 
-    # Patches from this fork:
-    # https://git.eno.space/pbp-uboot.git
-    ./0001-rk3399-pinebook-fix-sdcard-boot-from-emmc.patch
-    ./0003-rk3399-light-pinebook-power-and-standby-leds-during-.patch
-    ./0004-reduce-pinebook_pro-bootdelay-to-1.patch
-    ./0005-PBP-Add-regulator-needed-for-usb.patch
+    ./0001-rk3399-light-pinebook-power-and-standby-leds-during-.patch
+    ./0002-reduce-pinebook_pro-bootdelay-to-1.patch
 
-    # My own patch
-    ./0001-HACK-Add-changing-LEDs-signal-at-boot-on-pinebook-pr.patch
+    # samueldr's patchset
+    # -------------------
 
+    ./0005-HACK-Add-changing-LEDs-signal-at-boot-on-pinebook-pr.patch
   ] ++ lib.optionals (externalFirst) [
-    # Patches from this fork:
-    # https://git.eno.space/pbp-uboot.git
-    ./0002-rockchip-move-mmc1-before-mmc0-in-default-boot-order.patch
-    ./0006-rockchip-move-usb0-after-mmc1-in-default-boot-order.patch
+    # Origin: https://git.eno.space/pbp-uboot.git/
+    # Forward ported to 2020.07
+    ./0003-rockchip-move-mmc1-before-mmc0-in-default-boot-order.patch
+    ./0004-rockchip-move-usb0-after-mmc1-in-default-boot-order.patch
   ];
 })
 .overrideAttrs(oldAttrs: {
   nativeBuildInputs = oldAttrs.nativeBuildInputs ++ [
     python
   ];
+
   postPatch = oldAttrs.postPatch + ''
     patchShebangs arch/arm/mach-rockchip/
   '';
@@ -70,7 +69,7 @@ in
     domain = "gitlab.denx.de";
     owner = "u-boot";
     repo = "u-boot";
-    sha256 = "1fb8135gq8md2gr9sng1q2s1wj74xhy7by16dafzp4263b6vbwyv";
-    rev = "3ff1ff3ff76c15efe0451309af084ee6c096c583";
+    sha256 = "11154cxycw81dnmxfl10n2mgyass18jhjpwygqp7w1vjk9hgi4lw";
+    rev = "v2020.07";
   };
 })
