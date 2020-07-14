@@ -2,12 +2,13 @@ final: super:
 
 let
   inherit (final) callPackage kernelPatches linuxPackagesFor;
+  renamed = old: new: builtins.trace "The ${old} attribute name is deprecated. Prefer using ${new}." final.${new};
 in
 {
   # Alternative BSP u-boot, with nvme support if desired
   #   * https://gitlab.manjaro.org/manjaro-arm/packages/core/uboot-pinebookpro
-  uBootPinebookPro = callPackage ./u-boot {};
-  uBootPinebookProExternalFirst = callPackage ./u-boot {
+  ubootPinebookPro = callPackage ./u-boot {};
+  ubootPinebookProExternalFirst = callPackage ./u-boot {
     externalFirst = true;
   };
 
@@ -23,4 +24,10 @@ in
 
   pinebookpro-firmware = callPackage ./firmware {};
   pinebookpro-keyboard-updater = callPackage ./keyboard-updater {};
+
+  # Aliases
+
+  # Renamed to better follow the Nixpkgs naming scheme.
+  uBootPinebookPro = renamed "uBootPinebookPro" "ubootPinebookPro";
+  uBootPinebookProExternalFirst = renamed "uBootPinebookProExternalFirst" "ubootPinebookProExternalFirst";
 }

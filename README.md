@@ -69,7 +69,7 @@ while most other packages can be fetched from the cache.
 Assuming `/dev/mmcblk0` is an SD card.
 
 ```
-$ nix-build -A pkgs.uBootPinebookPro
+$ nix-build -A pkgs.ubootPinebookPro
 $ lsblk /dev/mmcblk0 && sudo dd if=result/idbloader.img of=/dev/mmcblk0 bs=512 seek=64 oflag=direct,sync && sudo dd if=result/u-boot.itb of=/dev/mmcblk0 bs=512 seek=16384 oflag=direct,sync
 ```
 
@@ -87,13 +87,13 @@ a situation where you can debug and fix the system if this happens. With this
 said, it should be safe enough.
 
 ```
-$ nix-build -A pkgs.uBootPinebookPro
+$ nix-build -A pkgs.ubootPinebookPro
 $ lsblk /dev/disk/by-path/platform-fe330000.sdhci && sudo dd if=result/idbloader.img of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=64 oflag=direct,sync && sudo dd if=result/u-boot.itb of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=16384 oflag=direct,sync
 ```
 
 ### Alternative boot order
 
-If you rather USB and SD card is tried before the eMMC, `pkgs.uBootPinebookProExternalFirst`
+If you rather USB and SD card is tried before the eMMC, `pkgs.ubootPinebookProExternalFirst`
 can be installed, which has an alternative patch set added on top that will
 change the boot order.
 
