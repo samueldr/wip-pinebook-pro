@@ -36,6 +36,19 @@ in
   ];
 
   extraPatches = [
+    # Upstream upcoming patches
+    # -------------------------
+    #
+    # https://patchwork.ozlabs.org/project/uboot/list/?series=182073
+    #
+    # RNG
+    # https://patchwork.ozlabs.org/patch/1305440/
+    (pw "1305440" "1w4vvj3la34rsdf5snlvjl9yxnxrybczjz8m73891x1r6lvr1agk")
+    # USB
+    # https://patchwork.ozlabs.org/patch/1305441/
+    (pw "1305441" "1my6vz2j7dp6k9qdyf4kzyfy2fgvj4bhxq0xnjkdvsasiz7rq2x9")
+    # SPI has been skipped as it seemed to cause issues.
+
     # Dhivael patchset
     # ----------------
     #
