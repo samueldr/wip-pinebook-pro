@@ -18,6 +18,9 @@ in
   linux_pinebookpro_latest = callPackage ./kernel/latest { kernelPatches = []; };
   linuxPackages_pinebookpro_latest = linuxPackagesFor final.linux_pinebookpro_latest;
 
+  linux_pinebookpro_lts = callPackage ./kernel/lts { kernelPatches = []; };
+  linuxPackages_pinebookpro_lts = linuxPackagesFor final.linux_pinebookpro_lts;
+
   pinebookpro-firmware = callPackage ./firmware {};
   pinebookpro-keyboard-updater = callPackage ./keyboard-updater {};
 }
