@@ -1,7 +1,7 @@
 { config, pkgs, lib, ... }:
 
 let
-  uboot = pkgs.uBootPinebookProExternalFirst;
+  uboot = pkgs.uBootPinebookPro;
 in
 {
   imports = [
