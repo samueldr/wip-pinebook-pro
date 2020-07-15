@@ -6,6 +6,7 @@
 , fetchFromGitLab
 , fetchFromGitHub
 , externalFirst ? false
+, runCommandNoCC
 }:
 
 let
@@ -14,6 +15,15 @@ let
     name = "${id}.patch";
     url = "https://patchwork.ozlabs.org/patch/${id}/raw/";
   };
+
+  # The version number for our opinionated firmware.
+  firmwareVersion = "002";
+
+  logo = runCommandNoCC "pbp-logo" {} ''
+    mkdir -p $out
+    cp ${../artwork/nixos+pine-rle.bmp} $out/logo.bmp                         
+    (cd $out; gzip -k logo.bmp)                           
+  '';                                    
 
   atf = armTrustedFirmwareRK3399.overrideAttrs(oldAttrs: {
     src = fetchFromGitHub {
@@ -71,14 +81,17 @@ in
 
     # samueldr's patchset
     # -------------------
-
-    ./0005-HACK-Add-changing-LEDs-signal-at-boot-on-pinebook-pr.patch
+    ./0001-opinionated-boot.patch
   ] ++ lib.optionals (externalFirst) [
     # Origin: https://git.eno.space/pbp-uboot.git/
     # Forward ported to 2020.07
     ./0003-rockchip-move-mmc1-before-mmc0-in-default-boot-order.patch
     ./0004-rockchip-move-usb0-after-mmc1-in-default-boot-order.patch
   ];
+      
+  extraConfig = ''                                                                
+    CONFIG_IDENT_STRING=" (samueldr-pbp) v${firmwareVersion}"
+  '';             
 })
 .overrideAttrs(oldAttrs: {
   nativeBuildInputs = oldAttrs.nativeBuildInputs ++ [
@@ -93,6 +106,10 @@ in
     tools/mkimage -n rk3399 -T rkspi -d tpl/u-boot-tpl-dtb.bin:spl/u-boot-spl-dtb.bin spl.bin
     cat <(dd if=spl.bin bs=512K conv=sync) u-boot.itb > $out/u-boot.spiflash.bin
   '';
+
+  makeFlags = oldAttrs.makeFlags ++ [
+    "LOGO_BMP=${logo}/logo.bmp"
+  ];
 
   src = fetchFromGitLab {
     domain = "gitlab.denx.de";

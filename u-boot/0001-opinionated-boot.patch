@@ -1,0 +1,640 @@
+From 375503f9a98878297ee05ba12c3be14afa795812 Mon Sep 17 00:00:00 2001
+From: Da Xue <da@libre.computer>
+Date: Fri, 8 May 2020 16:35:27 -0400
+Subject: [PATCH] splash: fix CONFIG_SPLASH_SOURCE and enable backup logo load
+
+Origin: https://github.com/libre-computer-project/libretech-u-boot/commit/8ddf2cded4efad8b5596b0b15a507aa3fb00f6d0
+---
+ common/splash.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/common/splash.c b/common/splash.c
+index 2b9313e03f1..cca81bff8ed 100644
+--- a/common/splash.c
++++ b/common/splash.c
+@@ -82,11 +82,12 @@ static inline int splash_video_logo_load(void) { return -ENOSYS; }
+ 
+ __weak int splash_screen_prepare(void)
+ {
+-	if (CONFIG_IS_ENABLED(SPLASH_SOURCE))
+-		return splash_source_load(default_splash_locations,
+-					  ARRAY_SIZE(default_splash_locations));
+-
+-	return splash_video_logo_load();
++	return
++#ifdef CONFIG_SPLASH_SOURCE	
++		splash_source_load(default_splash_locations,
++					  ARRAY_SIZE(default_splash_locations)) &&
++#endif
++	splash_video_logo_load();
+ }
+ 
+ #ifdef CONFIG_SPLASH_SCREEN_ALIGN
+-- 
+2.25.4
+
+From 02328c238f24591e135bd7bae7ac5ca3f8bb59fa Mon Sep 17 00:00:00 2001
+From: Da Xue <da@libre.computer>
+Date: Tue, 7 Jul 2020 04:47:48 -0400
+Subject: [PATCH] hack: bmp: compressed logo
+
+Origin: https://github.com/libre-computer-project/libretech-u-boot/commit/9f849b044b60cf9a05618ef7da13db3961120304
+---
+ tools/Makefile   |  6 +++++-
+ tools/bmp_logo.c | 29 +++++++++++++++++++++++++----
+ 2 files changed, 30 insertions(+), 5 deletions(-)
+
+diff --git a/tools/Makefile b/tools/Makefile
+index 879c3fd4a74..199378d8cea 100644
+--- a/tools/Makefile
++++ b/tools/Makefile
+@@ -256,7 +256,6 @@ ifneq ($(wildcard $(srctree)/$(src)/logos/$(VENDOR).bmp),)
+ LOGO_BMP= $(srctree)/$(src)/logos/$(VENDOR).bmp
+ endif
+ endif
+-
+ endif # !LOGO_BMP
+ 
+ #
+@@ -279,8 +278,13 @@ $(LOGO_H):	$(obj)/bmp_logo $(LOGO_BMP)
+ 	$(obj)/bmp_logo --gen-info $(LOGO_BMP) > $@
+ 
+ ifeq ($(CONFIG_DM_VIDEO),y)
++ifneq ($(wildcard $(LOGO_BMP).gz),)
++$(LOGO_DATA_H):	$(obj)/bmp_logo $(LOGO_BMP)
++	$(obj)/bmp_logo --gen-bmp-gz $(LOGO_BMP) $(LOGO_BMP).gz > $@
++else
+ $(LOGO_DATA_H):	$(obj)/bmp_logo $(LOGO_BMP)
+ 	$(obj)/bmp_logo --gen-bmp $(LOGO_BMP) > $@
++endif
+ else
+ $(LOGO_DATA_H):	$(obj)/bmp_logo $(LOGO_BMP)
+ 	$(obj)/bmp_logo --gen-data $(LOGO_BMP) > $@
+diff --git a/tools/bmp_logo.c b/tools/bmp_logo.c
+index 74fcadca63e..d8727c227fd 100644
+--- a/tools/bmp_logo.c
++++ b/tools/bmp_logo.c
+@@ -3,7 +3,8 @@
+ enum {
+ 	MODE_GEN_INFO,
+ 	MODE_GEN_DATA,
+-	MODE_GEN_BMP
++	MODE_GEN_BMP,
++	MODE_GEN_BMP_GZ
+ };
+ 
+ typedef struct bitmap_s {		/* bitmap description */
+@@ -17,7 +18,7 @@ typedef struct bitmap_s {		/* bitmap description */
+ 
+ void usage(const char *prog)
+ {
+-	fprintf(stderr, "Usage: %s [--gen-info|--gen-data|--gen-bmp] file\n",
++	fprintf(stderr, "Usage: %s [--gen-info|--gen-data|--gen-bmp|--gen-bmp-gz] file\n",
+ 		prog);
+ }
+ 
+@@ -76,7 +77,7 @@ int main (int argc, char *argv[])
+ {
+ 	int	mode, i, x;
+ 	int	size;
+-	FILE	*fp;
++	FILE	*fp, *gzfp;
+ 	bitmap_t bmp;
+ 	bitmap_t *b = &bmp;
+ 	uint16_t data_offset, n_colors, hdr_size;
+@@ -92,6 +93,8 @@ int main (int argc, char *argv[])
+ 		mode = MODE_GEN_DATA;
+ 	else if (!strcmp(argv[1], "--gen-bmp"))
+ 		mode = MODE_GEN_BMP;
++	else if (!strcmp(argv[1], "--gen-bmp-gz"))
++		mode = MODE_GEN_BMP_GZ;
+ 	else {
+ 		usage(argv[0]);
+ 		exit(EXIT_FAILURE);
+@@ -102,9 +105,17 @@ int main (int argc, char *argv[])
+ 		perror(argv[2]);
+ 		exit (EXIT_FAILURE);
+ 	}
+-
++	
+ 	if (fgetc (fp) != 'B' || fgetc (fp) != 'M')
+ 		error ("Input file is not a bitmap", fp);
++	
++	if (mode == MODE_GEN_BMP_GZ){
++		gzfp = fopen(argv[3], "rb");
++		if (!gzfp) {
++			perror(argv[3]);
++			exit (EXIT_FAILURE);
++		}
++	}
+ 
+ 	/*
+ 	 * read width and height of the image, and the number of colors used;
+@@ -182,6 +193,11 @@ int main (int argc, char *argv[])
+ 		fseek(fp, 0L, SEEK_END);
+ 		size = ftell(fp);
+ 		fseek(fp, 0L, SEEK_SET);
++	} else if (mode == MODE_GEN_BMP_GZ) {
++		/* copy full bmp file */
++		fseek(gzfp, 0L, SEEK_END);
++		size = ftell(gzfp);
++		fseek(gzfp, 0L, SEEK_SET);
+ 	} else {
+ 		fseek(fp, (long)data_offset, SEEK_SET);
+ 	}
+@@ -200,6 +216,10 @@ int main (int argc, char *argv[])
+ 		/* write full bmp */
+ 		for (i = 0; i < size; i++)
+ 			b->data[i] = (uint8_t)fgetc(fp);
++	} else if (mode == MODE_GEN_BMP_GZ) {
++		/* write full bmp */
++		for (i = 0; i < size; i++)
++			b->data[i] = (uint8_t)fgetc(gzfp);
+ 	} else {
+ 		for (i = (b->height - 1) * b->width; i >= 0; i -= b->width) {
+ 			for (x = 0; x < b->width; x++) {
+@@ -224,5 +244,6 @@ int main (int argc, char *argv[])
+ 
+ out:
+ 	fclose(fp);
++	if (mode == MODE_GEN_BMP_GZ) fclose(gzfp);
+ 	return 0;
+ }
+-- 
+2.25.4
+
+From 1cc7a56f46f8b8195ece2d8f647cfed45505a457 Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Tue, 7 Jul 2020 00:59:45 -0400
+Subject: [PATCH] bootmenu: Replace reverse for truetype console
+
+The truetype console doesn't support many ANSI escape sequences, among
+those the reverse sequence is *broken*. It reverses the text, but does
+not change the background color.
+
+This, instead, uses characters to show which option is currently active.
+---
+ cmd/bootmenu.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/cmd/bootmenu.c b/cmd/bootmenu.c
+index 18efe25751f..7b7db74c8e2 100644
+--- a/cmd/bootmenu.c
++++ b/cmd/bootmenu.c
+@@ -61,23 +61,24 @@ static char *bootmenu_getoption(unsigned short int n)
+ static void bootmenu_print_entry(void *data)
+ {
+ 	struct bootmenu_entry *entry = data;
+-	int reverse = (entry->menu->active == entry->num);
++	int active = (entry->menu->active == entry->num);
+ 
+ 	/*
+ 	 * Move cursor to line where the entry will be drown (entry->num)
+ 	 * First 3 lines contain bootmenu header + 1 empty line
+ 	 */
+ 	printf(ANSI_CURSOR_POSITION, entry->num + 4, 1);
++	puts(ANSI_CLEAR_LINE);
+ 
+-	puts("     ");
+-
+-	if (reverse)
+-		puts(ANSI_COLOR_REVERSE);
++	if (active)
++		puts("  => [");
++	else
++		puts("     ");
+ 
+ 	puts(entry->title);
+ 
+-	if (reverse)
+-		puts(ANSI_COLOR_RESET);
++	if (active)
++		puts("]");
+ }
+ 
+ static void bootmenu_autoboot_loop(struct bootmenu_data *menu,
+-- 
+2.25.4
+
+From c904267ca621815876eba5c21b967306a30c4cce Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Tue, 7 Jul 2020 05:04:53 -0400
+Subject: [PATCH] vidconsole-uclass: Implement ANSI_CURSOR_COLUMN
+
+---
+ drivers/video/vidconsole-uclass.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/drivers/video/vidconsole-uclass.c b/drivers/video/vidconsole-uclass.c
+index 9b761547212..3e8895017a1 100644
+--- a/drivers/video/vidconsole-uclass.c
++++ b/drivers/video/vidconsole-uclass.c
+@@ -306,6 +306,18 @@ static void vidconsole_escape_char(struct udevice *dev, char ch)
+ 		set_cursor_position(priv, row, col);
+ 		break;
+ 	}
++	case 'G': {
++		int row, col;
++		get_cursor_position(priv, &row, &col);
++		char *s = priv->escape_buf;
++		s++;    /* [ */
++		s = parsenum(s, &col);
++		col = col-1;
++		if (col < 0)
++			col = 0;
++		set_cursor_position(priv, row, col);
++		break;
++	}
+ 	case 'H':
+ 	case 'f': {
+ 		int row, col;
+-- 
+2.25.4
+
+From 6676c66c0108f4a2db1d17ce8c742189df7fb7eb Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Tue, 7 Jul 2020 22:17:36 -0400
+Subject: [PATCH] autoboot: Make all prompts configurable
+
+This is a multi-purpose commit. Though it is hard to split into distinct
+changes.
+
+1. Allows the non-keyed prompt to be configured
+
+This is self-explanatory. This allows better customization for the
+integrator. Though, more to the point, this reduces the confusion that
+comes from the option name and description. Now it is used for all
+auto-boot prompts, not only for the keyed prompt.
+
+2. Redraws using ANSI escapes
+
+This is required for (1), as we can't backspace over the arbitrary
+amount of characters to redraw the countdown.
+
+This is done through resetting the column to 1 and clearing the line for
+maximum compatibility. Tested against serial, default dm_video and the
+truetype console.
+---
+ cmd/Kconfig       |  4 ++--
+ common/autoboot.c | 15 ++++++++++-----
+ 2 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/cmd/Kconfig b/cmd/Kconfig
+index 192b3b262f1..f5d6781473a 100644
+--- a/cmd/Kconfig
++++ b/cmd/Kconfig
+@@ -86,8 +86,8 @@ config AUTOBOOT_KEYED
+ 
+ config AUTOBOOT_PROMPT
+ 	string "Autoboot stop prompt"
+-	depends on AUTOBOOT_KEYED
+-	default "Autoboot in %d seconds\\n"
++	default "Autoboot in %d seconds\\n" if AUTOBOOT_KEYED
++	default "Hit any key to stop autoboot: %2d \\n"
+ 	help
+ 	  This string is displayed before the boot delay selected by
+ 	  CONFIG_BOOTDELAY starts. If it is not defined	there is no
+diff --git a/common/autoboot.c b/common/autoboot.c
+index 6d78716a266..a3b2fb0c16f 100644
+--- a/common/autoboot.c
++++ b/common/autoboot.c
+@@ -5,6 +5,7 @@
+  */
+ 
+ #include <common.h>
++#include <ansi.h>
+ #include <autoboot.h>
+ #include <bootretry.h>
+ #include <cli.h>
+@@ -251,14 +252,16 @@ static int abortboot_single_key(int bootdelay)
+ 	int abort = 0;
+ 	unsigned long ts;
+ 
+-	printf("Hit any key to stop autoboot: %2d ", bootdelay);
++	printf(CONFIG_AUTOBOOT_PROMPT, bootdelay);
+ 
+ 	/*
+ 	 * Check if key already pressed
+ 	 */
+ 	if (tstc()) {	/* we got a key press	*/
+-		(void) getc();  /* consume input	*/
+-		puts("\b\b\b 0");
++		(void) getc();  /* consume input        */
++		puts(ANSI_CLEAR_LINE);
++		printf(ANSI_CURSOR_COLUMN, 1);
++		printf(CONFIG_AUTOBOOT_PROMPT, 0);
+ 		abort = 1;	/* don't auto boot	*/
+ 	}
+ 
+@@ -272,7 +275,7 @@ static int abortboot_single_key(int bootdelay)
+ 
+ 				abort  = 1;	/* don't auto boot	*/
+ 				bootdelay = 0;	/* no more delay	*/
+-				key = getc(); /* consume input	*/
++				key = getc(); /* consume input	*/	
+ 				if (IS_ENABLED(CONFIG_USE_AUTOBOOT_MENUKEY))
+ 					menukey = key;
+ 				break;
+@@ -280,7 +283,9 @@ static int abortboot_single_key(int bootdelay)
+ 			udelay(10000);
+ 		} while (!abort && get_timer(ts) < 1000);
+ 
+-		printf("\b\b\b%2d ", bootdelay);
++		puts(ANSI_CLEAR_LINE);
++		printf(ANSI_CURSOR_COLUMN, 1);
++		printf(CONFIG_AUTOBOOT_PROMPT, bootdelay);
+ 	}
+ 
+ 	putc('\n');
+-- 
+2.25.4
+
+From 0a4a4fca5af332e93d9b44032fe8afd7686387f4 Mon Sep 17 00:00:00 2001
+From: Da Xue <da@libre.computer>
+Date: Tue, 7 Jul 2020 22:23:48 -0400
+Subject: [PATCH] autoboot: correct config naming, only allow escape key to
+ menu
+
+Origin: https://github.com/libre-computer-project/libretech-u-boot/commit/e8dc057670e9ff0e8ecfea4fd549ce8cc2516378
+---
+ common/autoboot.c | 51 ++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 35 insertions(+), 16 deletions(-)
+
+diff --git a/common/autoboot.c b/common/autoboot.c
+index a3b2fb0c16f..82eb7ba3440 100644
+--- a/common/autoboot.c
++++ b/common/autoboot.c
+@@ -44,8 +44,12 @@ static int menukey;
+ #define AUTOBOOT_STOP_STR_SHA256 ""
+ #endif
+ 
+-#ifdef CONFIG_USE_AUTOBOOT_MENUKEY
+-#define AUTOBOOT_MENUKEY CONFIG_USE_AUTOBOOT_MENUKEY
++#ifdef CONFIG_AUTOBOOT_USE_MENUKEY
++#ifdef CONFIG_AUTOBOOT_MENUKEY
++#define AUTOBOOT_MENUKEY CONFIG_AUTOBOOT_MENUKEY
++#else
++#define AUTOBOOT_MENUKEY 0
++#endif
+ #else
+ #define AUTOBOOT_MENUKEY 0
+ #endif
+@@ -258,11 +262,22 @@ static int abortboot_single_key(int bootdelay)
+ 	 * Check if key already pressed
+ 	 */
+ 	if (tstc()) {	/* we got a key press	*/
+-		(void) getc();  /* consume input        */
+-		puts(ANSI_CLEAR_LINE);
+-		printf(ANSI_CURSOR_COLUMN, 1);
+-		printf(CONFIG_AUTOBOOT_PROMPT, 0);
+-		abort = 1;	/* don't auto boot	*/
++		if (IS_ENABLED(CONFIG_AUTOBOOT_USE_MENUKEY)){
++			menukey = getc();
++			puts(ANSI_CLEAR_LINE);
++			printf(ANSI_CURSOR_COLUMN, 1);
++			printf(CONFIG_AUTOBOOT_PROMPT, 0);
++			if (menukey == AUTOBOOT_MENUKEY) {
++				abort = 1;
++				bootdelay = 0;
++			}
++		} else {
++			(void) getc();  /* consume input        */
++			puts(ANSI_CLEAR_LINE);
++			printf(ANSI_CURSOR_COLUMN, 1);
++			printf(CONFIG_AUTOBOOT_PROMPT, 0);
++			abort = 1;	/* don't auto boot	*/
++		}
+ 	}
+ 
+ 	while ((bootdelay > 0) && (!abort)) {
+@@ -271,13 +286,18 @@ static int abortboot_single_key(int bootdelay)
+ 		ts = get_timer(0);
+ 		do {
+ 			if (tstc()) {	/* we got a key press	*/
+-				int key;
+-
+-				abort  = 1;	/* don't auto boot	*/
+-				bootdelay = 0;	/* no more delay	*/
+-				key = getc(); /* consume input	*/	
+-				if (IS_ENABLED(CONFIG_USE_AUTOBOOT_MENUKEY))
+-					menukey = key;
++				
++				if (IS_ENABLED(CONFIG_AUTOBOOT_USE_MENUKEY)){
++					menukey = getc();
++					if (menukey == AUTOBOOT_MENUKEY){
++						abort = 1;
++						bootdelay = 0;
++					}
++				} else {
++					abort  = 1;	/* don't auto boot	*/
++					bootdelay = 0;	/* no more delay	*/
++					menukey = getc(); /* consume input	*/	
++				}
+ 				break;
+ 			}
+ 			udelay(10000);
+@@ -383,8 +403,7 @@ void autoboot_command(const char *s)
+ 			disable_ctrlc(prev);	/* restore Ctrl-C checking */
+ 	}
+ 
+-	if (IS_ENABLED(CONFIG_USE_AUTOBOOT_MENUKEY) &&
+-	    menukey == AUTOBOOT_MENUKEY) {
++	if (IS_ENABLED(CONFIG_AUTOBOOT_USE_MENUKEY)) {
+ 		s = env_get("menucmd");
+ 		if (s)
+ 			run_command_list(s, -1, 0);
+-- 
+2.25.4
+
+From c2832bcbc0ae86b2fe85abc68dd98a406ee0deeb Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Wed, 8 Jul 2020 01:26:30 -0400
+Subject: [PATCH] Define a very-opinionated boot sequence
+
+---
+ configs/pinebook-pro-rk3399_defconfig | 25 +++++++++++++++++++++++++
+ include/configs/pinebook-pro-rk3399.h | 17 +++++++++++++++++
+ 2 files changed, 42 insertions(+)
+
+diff --git a/configs/pinebook-pro-rk3399_defconfig b/configs/pinebook-pro-rk3399_defconfig
+index dbbd43ed9f3..4acccdfb0f7 100644
+--- a/configs/pinebook-pro-rk3399_defconfig
++++ b/configs/pinebook-pro-rk3399_defconfig
+@@ -95,3 +95,28 @@ CONFIG_SPL_SPI_FLASH_TINY=n
+ CONFIG_SPL_SPI_FLASH_SFDP_SUPPORT=y
+ CONFIG_SPL_SPI_LOAD=y
+ CONFIG_SYS_SPI_U_BOOT_OFFS=0x80000
++
++# Boot menu required for the menu (duh)
++CONFIG_CMD_BOOTMENU=y
++
++# Truetype console configuration
++CONFIG_CONSOLE_TRUETYPE=y
++CONFIG_CONSOLE_TRUETYPE_NIMBUS=y
++CONFIG_CONSOLE_TRUETYPE_SIZE=26
++
++# Boot menu and default boot configuration
++
++# Gives *some* time for the user to act.
++# Though an already-knowledgeable user will know they can use the key before
++# the message is shown.
++# Conversely, CTRL+C can cancel the default boot, showing the menu as expected
++# In reality, this gives us MUCH MORE slop in the time window than 1 second.
++CONFIG_BOOTDELAY=1
++# This would be escape, but the USB drivers don't really play well and
++# escape doesn't work from the keyboard.
++CONFIG_AUTOBOOT_MENUKEY=27
++# So we'll fake that using CTRL+C is what we want...
++# It's only a side-effect.
++CONFIG_AUTOBOOT_PROMPT="Press CTRL+C for the boot menu."
++# And this ends up causing the menu to be used on CTRL+C (or escape)
++CONFIG_AUTOBOOT_USE_MENUKEY=y
+diff --git a/include/configs/pinebook-pro-rk3399.h b/include/configs/pinebook-pro-rk3399.h
+index d9108305824..5b1234ac7ad 100644
+--- a/include/configs/pinebook-pro-rk3399.h
++++ b/include/configs/pinebook-pro-rk3399.h
+@@ -7,7 +7,24 @@
+ #ifndef __PINEBOOK_PRO_RK3399_H
+ #define __PINEBOOK_PRO_RK3399_H
+ 
++// This sets up additional environment variables for our opinionated setup.
++// (See rk3399_common.h, it should be apended to ROCKCHIP_DEVICE_SETTINGS here
++//  but it makes patches harder to apply...)
++#define OPINIONATED_ENV \
++		"setup_leds=led green:power on; led red:standby on\0" \
++		"bootcmd=run setup_leds; run distro_bootcmd\0" \
++		"bootmenu_delay=-1\0" \
++		"bootmenu_0=Default U-Boot boot=run distro_bootcmd; echo \"Boot failed.\"; sleep 5; $menucmd -1\0" \
++		"bootmenu_1=Boot from eMMC=run bootcmd_mmc0; echo \"eMMC Boot failed.\"; sleep 5; $menucmd -1\0" \
++		"bootmenu_2=Boot from SD=run bootcmd_mmc1; echo \"SD Boot failed.\"; sleep 5; $menucmd -1\0" \
++		"bootmenu_3=Boot from USB=run bootcmd_usb0; echo \"USB Boot failed.\"; sleep 5; $menucmd -1\0" \
++		"bootmenu_4=Boot PXE=run bootcmd_pxe; echo \"PXE Boot failed.\"; sleep 5; $menucmd -1\0" \
++		"bootmenu_5=Boot DHCP=run bootcmd_dhcp; echo \"DHCP Boot failed.\"; sleep 5; $menucmd -1\0" \
++		"bootmenu_6=Reboot=reset\0" \
++		"menucmd=bootmenu\0"
++
+ #define ROCKCHIP_DEVICE_SETTINGS \
++		OPINIONATED_ENV \
+ 		"stdin=serial,usbkbd\0" \
+ 		"stdout=serial,vidconsole\0" \
+ 		"stderr=serial,vidconsole\0"
+-- 
+2.25.4
+
+From 7fad5fa92dc905a11cf53549a4fc52940571e204 Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Wed, 8 Jul 2020 01:26:55 -0400
+Subject: [PATCH] Configure boot splash logo
+
+This assumes LOGO_BMP is set by the derivation as a make flag.
+---
+ configs/pinebook-pro-rk3399_defconfig |  3 +++
+ include/configs/pinebook-pro-rk3399.h | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/configs/pinebook-pro-rk3399_defconfig b/configs/pinebook-pro-rk3399_defconfig
+index 4acccdfb0f7..8dc5bc95cd9 100644
+--- a/configs/pinebook-pro-rk3399_defconfig
++++ b/configs/pinebook-pro-rk3399_defconfig
+@@ -99,6 +99,9 @@ CONFIG_SYS_SPI_U_BOOT_OFFS=0x80000
+ # Boot menu required for the menu (duh)
+ CONFIG_CMD_BOOTMENU=y
+ 
++# Required for the splash (see include/configs/pinebook-pro-rk3399.h)
++CONFIG_CMD_BMP=y
++
+ # Truetype console configuration
+ CONFIG_CONSOLE_TRUETYPE=y
+ CONFIG_CONSOLE_TRUETYPE_NIMBUS=y
+diff --git a/include/configs/pinebook-pro-rk3399.h b/include/configs/pinebook-pro-rk3399.h
+index 5b1234ac7ad..2c276476ca8 100644
+--- a/include/configs/pinebook-pro-rk3399.h
++++ b/include/configs/pinebook-pro-rk3399.h
+@@ -7,10 +7,26 @@
+ #ifndef __PINEBOOK_PRO_RK3399_H
+ #define __PINEBOOK_PRO_RK3399_H
+ 
++// The following bunch of defines is for the splash
++#define CONFIG_SPLASHIMAGE_GUARD
++#define CONFIG_SPLASH_SCREEN
++#define CONFIG_SPLASH_SCREEN_ALIGN
++#define CONFIG_SPLASH_SOURCE
++#define CONFIG_SYS_VIDEO_LOGO_MAX_SIZE (1920*1080*4)
++#define CONFIG_VIDEO_BMP_GZIP
++#define CONFIG_VIDEO_BMP_LOGO
++#define CONFIG_VIDEO_BMP_RLE8
++#define CONFIG_VIDEO_LOGO
++#define SPLASH_ENV \
++		"splashimage=0x08080000\0" \
++		"splashpos=m,m\0" \
++		"splashsource=mmc_fs\0"
++
+ // This sets up additional environment variables for our opinionated setup.
+ // (See rk3399_common.h, it should be apended to ROCKCHIP_DEVICE_SETTINGS here
+ //  but it makes patches harder to apply...)
+ #define OPINIONATED_ENV \
++		SPLASH_ENV \
+ 		"setup_leds=led green:power on; led red:standby on\0" \
+ 		"bootcmd=run setup_leds; run distro_bootcmd\0" \
+ 		"bootmenu_delay=-1\0" \
+-- 
+2.25.4
+
+From 025775cd6469ed0a5a818d2708cc82a43755abb9 Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Thu, 9 Jul 2020 02:50:29 -0400
+Subject: [PATCH] [WIP] cli: Clear ctrl+c before running a command
+
+This fixes an issue where:
+
+With an environment like so:
+
+    bootmenu_0=Default U-Boot boot=run distro_bootcmd; $menucmd -1
+
+  * Running bootmenu
+  * Running the option
+  * Cancelling using CTRL-C
+
+Would show the menu as expected, but running *any* command
+post-cancellation would spuriously exit in unexplainable ways.
+---
+ common/cli.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/common/cli.c b/common/cli.c
+index 6635ab2bcf8..f49a0689cc7 100644
+--- a/common/cli.c
++++ b/common/cli.c
+@@ -45,6 +45,9 @@ int run_command(const char *cmd, int flag)
+ 
+ 	if (flag & CMD_FLAG_ENV)
+ 		hush_flags |= FLAG_CONT_ON_NEWLINE;
++
++	clear_ctrlc();		/* forget any previous Control C */
++
+ 	return parse_string_outer(cmd, hush_flags);
+ #endif
+ }
+@@ -65,6 +68,9 @@ int run_command_repeatable(const char *cmd, int flag)
+ 	 * parse_string_outer() returns 1 for failure, so clean up
+ 	 * its result.
+ 	 */
++
++	clear_ctrlc();		/* forget any previous Control C */
++
+ 	if (parse_string_outer(cmd,
+ 			       FLAG_PARSE_SEMICOLON | FLAG_EXIT_FROM_LOOP))
+ 		return -1;
+@@ -105,6 +111,9 @@ int run_command_list(const char *cmd, int len, int flag)
+ 		buff[len] = '\0';
+ 	}
+ #ifdef CONFIG_HUSH_PARSER
++
++	clear_ctrlc();		/* forget any previous Control C */
++
+ 	rcode = parse_string_outer(buff, FLAG_PARSE_SEMICOLON);
+ #else
+ 	/*
+-- 
+2.25.4
+
