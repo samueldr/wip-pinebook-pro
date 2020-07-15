@@ -66,6 +66,8 @@ while most other packages can be fetched from the cache.
 
 ## `u-boot`
 
+> **NOTE**: The following instructions are for if you haven't installed U-Boot to the SPI flash.
+
 Assuming `/dev/mmcblk0` is an SD card.
 
 ```
@@ -78,9 +80,10 @@ the eMMC as a boot device first.
 
 Alternatively, this u-boot can be installed to the eMMC.
 
-Installing to SPI has yet to be investigated.
 
 ### Updating eMMC u-boot from NixOS
+
+> **NOTE**: The following instructions are for if you haven't installed U-Boot to the SPI flash.
 
 **Caution:** this could render your system unbootable. Do this when you are in
 a situation where you can debug and fix the system if this happens. With this
@@ -115,3 +118,19 @@ the image to your eMMC keeps external devices bootable.
 ```
 
 Note: poweroff must be used, reboot does not turn the hardware "off" enough.
+
+
+## About pre-built images
+
+It is assumed that the official binary cache can be trusted. Any other source
+for images is of unknown trustworthiness.
+
+As a broader goal of trust within the NixOS community, we strongly recommend
+users build their own images on hardware they trust so they know the
+provenance.
+
+This is why this repository does not offer pre-built images. I would also like
+that no third party pre-built images are produced.
+
+Once the upstream kernel fully supports the Pinebook Pro, it will not be an
+issue as the generic AArch64 images will work with the Pinebook Pro.
