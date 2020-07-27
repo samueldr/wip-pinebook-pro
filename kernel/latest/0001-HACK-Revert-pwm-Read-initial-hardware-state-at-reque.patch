@@ -1,0 +1,51 @@
+From 84517c6e2aac4fb32c8b02b5713297b37c140b4f Mon Sep 17 00:00:00 2001
+From: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Date: Sun, 26 Jul 2020 19:31:59 -0400
+Subject: [PATCH] [HACK] Revert "pwm: Read initial hardware state at request
+ time"
+
+This is a WORKAROUND for the issue where recent kernels will hang at
+display initialization with recent kernels.
+
+This reverts commit cfc4c189bc70b1acc17e6f1abf1dc1c0ae890bd8.
+---
+ drivers/pwm/core.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/pwm/core.c b/drivers/pwm/core.c
+index 004b2ea9b5fd..245e2fcfc779 100644
+--- a/drivers/pwm/core.c
++++ b/drivers/pwm/core.c
+@@ -117,14 +117,6 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
+ 		}
+ 	}
+ 
+-	if (pwm->chip->ops->get_state) {
+-		pwm->chip->ops->get_state(pwm->chip, pwm, &pwm->state);
+-		trace_pwm_get(pwm, &pwm->state);
+-
+-		if (IS_ENABLED(CONFIG_PWM_DEBUG))
+-			pwm->last = pwm->state;
+-	}
+-
+ 	set_bit(PWMF_REQUESTED, &pwm->flags);
+ 	pwm->label = label;
+ 
+@@ -305,6 +297,14 @@ int pwmchip_add_with_polarity(struct pwm_chip *chip,
+ 		pwm->hwpwm = i;
+ 		pwm->state.polarity = polarity;
+ 
++		if (pwm->chip->ops->get_state) {
++			pwm->chip->ops->get_state(pwm->chip, pwm, &pwm->state);
++			trace_pwm_get(pwm, &pwm->state);
++
++			if (IS_ENABLED(CONFIG_PWM_DEBUG))
++				pwm->last = pwm->state;
++		}
++
+ 		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
+ 	}
+ 
+-- 
+2.25.4
+
