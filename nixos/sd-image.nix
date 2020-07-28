@@ -7,7 +7,7 @@ let
     inherit (config.sdImage) storePaths;
     #compressImage = false;
     populateImageCommands = config.sdImage.populateRootCommands;
-    volumeLabel = "NIXOS_SD";
+    volumeLabel = "NIXOS_RECOVERY";
   } // optionalAttrs (config.sdImage.rootPartitionUUID != null) {
     uuid = config.sdImage.rootPartitionUUID;
   });
@@ -87,7 +87,7 @@ in
   config = {
     fileSystems = {
       "/" = {
-        device = "/dev/disk/by-label/NIXOS_SD";
+        device = "/dev/disk/by-label/NIXOS_RECOVERY";
         fsType = "ext4";
       };
     };
