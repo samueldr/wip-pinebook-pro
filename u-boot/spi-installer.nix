@@ -48,7 +48,6 @@ let
     size = "8"; # in MiB
     nativeBuildInputs = [
       e2fsprogs.bin
-      utillinux
     ];
     volumeLabel = "FIRMWARE_INSTALL";
     uuid = "666efd84-5c25-48ec-af06-e9dadbaa830f";
@@ -56,7 +55,7 @@ let
     img="$out"
     (PS4=" $ "; set -x
 
-    fallocate -l "$size"M $img
+    truncate -s "$size"M $img
 
     mkdir -p files
     (cd ./files
