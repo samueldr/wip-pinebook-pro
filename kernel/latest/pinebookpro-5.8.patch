@@ -1,987 +1,7 @@
-From bc5ae50dbbce7549ad98ebcc20707e6531b6aee7 Mon Sep 17 00:00:00 2001
-From: Tobias Schramm <t.schramm@manjaro.org>
-Date: Thu, 28 May 2020 13:58:31 +0200
-Subject: [PATCH 01/25] power: supply: Add support for CellWise cw2015 fuel
- gauge
-
-Drop this once the mainline driver lands
-
-Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
----
- .../bindings/power/supply/cw2015_battery.txt  |  40 +
- .../bindings/power/supply/cw2015_battery.yaml |  82 ++
- .../devicetree/bindings/vendor-prefixes.yaml  |   2 +
- MAINTAINERS                                   |   6 +
- drivers/power/supply/Kconfig                  |  11 +
- drivers/power/supply/Makefile                 |   1 +
- drivers/power/supply/cw2015_battery.c         | 750 ++++++++++++++++++
- 7 files changed, 892 insertions(+)
- create mode 100644 Documentation/devicetree/bindings/power/supply/cw2015_battery.txt
- create mode 100644 Documentation/devicetree/bindings/power/supply/cw2015_battery.yaml
- create mode 100644 drivers/power/supply/cw2015_battery.c
-
-diff --git a/Documentation/devicetree/bindings/power/supply/cw2015_battery.txt b/Documentation/devicetree/bindings/power/supply/cw2015_battery.txt
-new file mode 100644
-index 000000000000..6128dbbccb82
---- /dev/null
-+++ b/Documentation/devicetree/bindings/power/supply/cw2015_battery.txt
-@@ -0,0 +1,40 @@
-+cw2015_battery
-+~~~~~~~~~~~~~~~~
-+
-+The cellwise CW2015 is a shuntless single cell battery fuel gauge.
-+
-+Required properties :
-+ - compatible : "cellwise,cw2015"
-+ - reg: i2c address
-+
-+Optional properties :
-+ - cellwise,bat-config-info : 64 byte binary battery info blob
-+ - cellwise,monitor-interval-ms : Measurement interval in milliseconds
-+ - power-supplies: List of phandles from chargers
-+ - monitored-battery: phandle of a simpl-battery
-+
-+Example:
-+	bat: battery {
-+		compatible = "simple-battery";
-+		voltage-min-design-microvolt = <3000000>;
-+		voltage-max-design-microvolt = <4350000>;
-+		charge-full-design-microamp-hours = <9800000>;
-+	}
-+
-+	cw2015@62 {
-+		compatible = "cellwise,cw201x";
-+		reg = <0x62>;
-+		cellwise,bat-config-info = /bits/ 8 <
-+			0x17 0x67 0x80 0x73 0x6E 0x6C 0x6B 0x63
-+			0x77 0x51 0x5C 0x58 0x50 0x4C 0x48 0x36
-+			0x15 0x0C 0x0C 0x19 0x5B 0x7D 0x6F 0x69
-+			0x69 0x5B 0x0C 0x29 0x20 0x40 0x52 0x59
-+			0x57 0x56 0x54 0x4F 0x3B 0x1F 0x7F 0x17
-+			0x06 0x1A 0x30 0x5A 0x85 0x93 0x96 0x2D
-+			0x48 0x77 0x9C 0xB3 0x80 0x52 0x94 0xCB
-+			0x2F 0x00 0x64 0xA5 0xB5 0x11 0xF0 0x11
-+		>;
-+		cellwise,monitor-interval-ms = <5000>;
-+		power-supplies = <&mains_charger>, <&usb_charger>;
-+		monitored-battery = <&bat>;
-+	}
-diff --git a/Documentation/devicetree/bindings/power/supply/cw2015_battery.yaml b/Documentation/devicetree/bindings/power/supply/cw2015_battery.yaml
-new file mode 100644
-index 000000000000..4a265d4234b9
---- /dev/null
-+++ b/Documentation/devicetree/bindings/power/supply/cw2015_battery.yaml
-@@ -0,0 +1,82 @@
-+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-+%YAML 1.2
-+---
-+$id: http://devicetree.org/schemas/power/supply/cw2015_battery.yaml#
-+$schema: http://devicetree.org/meta-schemas/core.yaml#
-+
-+title: Battery driver for CW2015 shuntless fuel gauge by CellWise.
-+
-+maintainers:
-+  - Tobias Schramm <t.schramm@manjaro.org>
-+
-+description: |
-+  The driver can utilize information from a simple-battery linked via a
-+  phandle in monitored-battery. If specified the driver uses the
-+  charge-full-design-microamp-hours property of the battery.
-+
-+properties:
-+  compatible:
-+    const: cellwise,cw2015
-+
-+  reg:
-+    maxItems: 1
-+
-+  cellwise,battery-profile:
-+    description: |
-+      This property specifies characteristics of the battery used. The format
-+      of this binary blob is kept secret by CellWise. The only way to obtain
-+      it is to mail two batteries to a test facility of CellWise and receive
-+      back a test report with the binary blob.
-+    allOf:
-+      - $ref: /schemas/types.yaml#definitions/uint8-array
-+    items:
-+      - minItems: 64
-+        maxItems: 64
-+
-+  cellwise,monitor-interval-ms:
-+    description:
-+      Specifies the interval in milliseconds gauge values are polled at
-+    minimum: 250
-+
-+  power-supplies:
-+    description:
-+      Specifies supplies used for charging the battery connected to this gauge
-+    allOf:
-+      - $ref: /schemas/types.yaml#/definitions/phandle-array
-+      - minItems: 1
-+        maxItems: 8 # Should be enough
-+
-+  monitored-battery:
-+    description:
-+      Specifies the phandle of a simple-battery connected to this gauge
-+    $ref: /schemas/types.yaml#/definitions/phandle
-+
-+required:
-+  - compatible
-+  - reg
-+
-+examples:
-+  - |
-+    i2c {
-+        #address-cells = <1>;
-+        #size-cells = <0>;
-+
-+        cw2015@62 {
-+            compatible = "cellwise,cw201x";
-+            reg = <0x62>;
-+            cellwise,battery-profile = /bits/ 8 <
-+                0x17 0x67 0x80 0x73 0x6E 0x6C 0x6B 0x63
-+                0x77 0x51 0x5C 0x58 0x50 0x4C 0x48 0x36
-+                0x15 0x0C 0x0C 0x19 0x5B 0x7D 0x6F 0x69
-+                0x69 0x5B 0x0C 0x29 0x20 0x40 0x52 0x59
-+                0x57 0x56 0x54 0x4F 0x3B 0x1F 0x7F 0x17
-+                0x06 0x1A 0x30 0x5A 0x85 0x93 0x96 0x2D
-+                0x48 0x77 0x9C 0xB3 0x80 0x52 0x94 0xCB
-+                0x2F 0x00 0x64 0xA5 0xB5 0x11 0xF0 0x11
-+           >;
-+           cellwise,monitor-interval-ms = <5000>;
-+           monitored-battery = <&bat>;
-+           power-supplies = <&mains_charger>, <&usb_charger>;
-+       };
-+    };
-+
-diff --git a/Documentation/devicetree/bindings/vendor-prefixes.yaml b/Documentation/devicetree/bindings/vendor-prefixes.yaml
-index d3891386d671..58cf4e8b8d56 100644
---- a/Documentation/devicetree/bindings/vendor-prefixes.yaml
-+++ b/Documentation/devicetree/bindings/vendor-prefixes.yaml
-@@ -179,6 +179,8 @@ patternProperties:
-     description: Cadence Design Systems Inc.
-   "^cdtech,.*":
-     description: CDTech(H.K.) Electronics Limited
-+  "^cellwise,.*":
-+    description: CellWise Microelectronics Co., Ltd
-   "^ceva,.*":
-     description: Ceva, Inc.
-   "^chipidea,.*":
-diff --git a/MAINTAINERS b/MAINTAINERS
-index 50659d76976b..744fe0f31bbc 100644
---- a/MAINTAINERS
-+++ b/MAINTAINERS
-@@ -3933,6 +3933,12 @@ F:	arch/powerpc/include/uapi/asm/spu*.h
- F:	arch/powerpc/oprofile/*cell*
- F:	arch/powerpc/platforms/cell/
- 
-+CELLWISE CW2015 BATTERY DRIVER
-+M:	Tobias Schrammm <t.schramm@manjaro.org>
-+S:	Maintained
-+F:	Documentation/devicetree/bindings/power/supply/cw2015_battery.yaml
-+F:	drivers/power/supply/cw2015_battery.c
-+
- CEPH COMMON CODE (LIBCEPH)
- M:	Ilya Dryomov <idryomov@gmail.com>
- M:	Jeff Layton <jlayton@kernel.org>
-diff --git a/drivers/power/supply/Kconfig b/drivers/power/supply/Kconfig
-index f3424fdce341..7953e6c92521 100644
---- a/drivers/power/supply/Kconfig
-+++ b/drivers/power/supply/Kconfig
-@@ -116,6 +116,17 @@ config BATTERY_CPCAP
- 	  Say Y here to enable support for battery on Motorola
- 	  phones and tablets such as droid 4.
- 
-+config BATTERY_CW2015
-+	tristate "CW2015 Battery driver"
-+	depends on I2C
-+	select REGMAP_I2C
-+	help
-+	  Say Y here to enable support for the cellwise cw2015
-+	  battery fuel gauge (used in the Pinebook Pro & others)
-+
-+	  This driver can also be built as a module. If so, the module will be
-+	  called cw2015_battery.
-+
- config BATTERY_DS2760
- 	tristate "DS2760 battery driver (HP iPAQ & others)"
- 	depends on W1
-diff --git a/drivers/power/supply/Makefile b/drivers/power/supply/Makefile
-index 6c7da920ea83..69727a10e835 100644
---- a/drivers/power/supply/Makefile
-+++ b/drivers/power/supply/Makefile
-@@ -24,6 +24,7 @@ obj-$(CONFIG_BATTERY_ACT8945A)	+= act8945a_charger.o
- obj-$(CONFIG_BATTERY_AXP20X)	+= axp20x_battery.o
- obj-$(CONFIG_CHARGER_AXP20X)	+= axp20x_ac_power.o
- obj-$(CONFIG_BATTERY_CPCAP)	+= cpcap-battery.o
-+obj-$(CONFIG_BATTERY_CW2015)	+= cw2015_battery.o
- obj-$(CONFIG_BATTERY_DS2760)	+= ds2760_battery.o
- obj-$(CONFIG_BATTERY_DS2780)	+= ds2780_battery.o
- obj-$(CONFIG_BATTERY_DS2781)	+= ds2781_battery.o
-diff --git a/drivers/power/supply/cw2015_battery.c b/drivers/power/supply/cw2015_battery.c
-new file mode 100644
-index 000000000000..ccfc9e78beeb
---- /dev/null
-+++ b/drivers/power/supply/cw2015_battery.c
-@@ -0,0 +1,750 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Fuel gauge driver for CellWise 2013 / 2015
-+ *
-+ * Copyright (C) 2012, RockChip
-+ * Copyright (C) 2020, Tobias Schramm
-+ *
-+ * Authors: xuhuicong <xhc@rock-chips.com>
-+ * Authors: Tobias Schramm <t.schramm@manjaro.org>
-+ */
-+
-+#include <linux/bits.h>
-+#include <linux/delay.h>
-+#include <linux/i2c.h>
-+#include <linux/gfp.h>
-+#include <linux/gpio/consumer.h>
-+#include <linux/kernel.h>
-+#include <linux/module.h>
-+#include <linux/power_supply.h>
-+#include <linux/property.h>
-+#include <linux/regmap.h>
-+#include <linux/time.h>
-+#include <linux/workqueue.h>
-+
-+#define CW2015_SIZE_BATINFO		64
-+
-+#define CW2015_RESET_TRIES		5
-+
-+#define CW2015_REG_VERSION		0x00
-+#define CW2015_REG_VCELL		0x02
-+#define CW2015_REG_SOC			0x04
-+#define CW2015_REG_RRT_ALERT		0x06
-+#define CW2015_REG_CONFIG		0x08
-+#define CW2015_REG_MODE			0x0A
-+#define CW2015_REG_BATINFO		0x10
-+
-+#define CW2015_MODE_SLEEP_MASK		GENMASK(7, 6)
-+#define CW2015_MODE_SLEEP		(0x03 << 6)
-+#define CW2015_MODE_NORMAL		(0x00 << 6)
-+#define CW2015_MODE_QUICK_START		(0x03 << 4)
-+#define CW2015_MODE_RESTART		(0x0f << 0)
-+
-+#define CW2015_CONFIG_UPDATE_FLG	(0x01 << 1)
-+#define CW2015_ATHD(x)			((x) << 3)
-+#define CW2015_MASK_ATHD		GENMASK(7, 3)
-+#define CW2015_MASK_SOC			GENMASK(12, 0)
-+
-+/* reset gauge of no valid state of charge could be polled for 40s */
-+#define CW2015_BAT_SOC_ERROR_MS		(40 * MSEC_PER_SEC)
-+/* reset gauge if state of charge stuck for half an hour during charging */
-+#define CW2015_BAT_CHARGING_STUCK_MS	(1800 * MSEC_PER_SEC)
-+
-+/* poll interval from CellWise GPL Android driver example */
-+#define CW2015_DEFAULT_POLL_INTERVAL_MS		8000
-+
-+#define CW2015_AVERAGING_SAMPLES		3
-+
-+struct cw_battery {
-+	struct device *dev;
-+	struct workqueue_struct *battery_workqueue;
-+	struct delayed_work battery_delay_work;
-+	struct regmap *regmap;
-+	struct power_supply *rk_bat;
-+	struct power_supply_battery_info battery;
-+	u8 *bat_profile;
-+
-+	bool charger_attached;
-+	bool battery_changed;
-+
-+	int soc;
-+	int voltage_mv;
-+	int status;
-+	int time_to_empty;
-+	int charge_count;
-+
-+	u32 poll_interval_ms;
-+	u8 alert_level;
-+
-+	unsigned int read_errors;
-+	unsigned int charge_stuck_cnt;
-+};
-+
-+static int cw_read_word(struct cw_battery *cw_bat, u8 reg, u16 *val)
-+{
-+	__be16 value;
-+	int ret;
-+
-+	ret = regmap_bulk_read(cw_bat->regmap, reg, &value, sizeof(value));
-+	if (ret)
-+		return ret;
-+
-+	*val = be16_to_cpu(value);
-+	return 0;
-+}
-+
-+int cw_update_profile(struct cw_battery *cw_bat)
-+{
-+	int ret;
-+	unsigned int reg_val;
-+	u8 reset_val;
-+
-+	/* make sure gauge is not in sleep mode */
-+	ret = regmap_read(cw_bat->regmap, CW2015_REG_MODE, &reg_val);
-+	if (ret)
-+		return ret;
-+
-+	reset_val = reg_val;
-+	if ((reg_val & CW2015_MODE_SLEEP_MASK) == CW2015_MODE_SLEEP) {
-+		dev_err(cw_bat->dev,
-+			"Gauge is in sleep mode, can't update battery info\n");
-+		return -EINVAL;
-+	}
-+
-+	/* write new battery info */
-+	ret = regmap_raw_write(cw_bat->regmap, CW2015_REG_BATINFO,
-+			       cw_bat->bat_profile,
-+			       CW2015_SIZE_BATINFO);
-+	if (ret)
-+		return ret;
-+
-+	/* set config update flag  */
-+	reg_val |= CW2015_CONFIG_UPDATE_FLG;
-+	reg_val &= ~CW2015_MASK_ATHD;
-+	reg_val |= CW2015_ATHD(cw_bat->alert_level);
-+	ret = regmap_write(cw_bat->regmap, CW2015_REG_CONFIG, reg_val);
-+	if (ret)
-+		return ret;
-+
-+	/* reset gauge to apply new battery profile */
-+	reset_val &= ~CW2015_MODE_RESTART;
-+	reg_val = reset_val | CW2015_MODE_RESTART;
-+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reg_val);
-+	if (ret)
-+		return ret;
-+
-+	/* wait for gauge to reset */
-+	msleep(20);
-+
-+	/* clear reset flag */
-+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reset_val);
-+	if (ret)
-+		return ret;
-+
-+	/* wait for gauge to become ready */
-+	ret = regmap_read_poll_timeout(cw_bat->regmap, CW2015_REG_SOC,
-+				       reg_val, reg_val <= 100,
-+				       10 * USEC_PER_MSEC, 10 * USEC_PER_SEC);
-+	if (ret)
-+		dev_err(cw_bat->dev,
-+			"Gauge did not become ready after profile upload\n");
-+	else
-+		dev_dbg(cw_bat->dev, "Battery profile updated\n");
-+
-+	return ret;
-+}
-+
-+static int cw_init(struct cw_battery *cw_bat)
-+{
-+	int ret;
-+	unsigned int reg_val = CW2015_MODE_SLEEP;
-+
-+	if ((reg_val & CW2015_MODE_SLEEP_MASK) == CW2015_MODE_SLEEP) {
-+		reg_val = CW2015_MODE_NORMAL;
-+		ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reg_val);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	ret = regmap_read(cw_bat->regmap, CW2015_REG_CONFIG, &reg_val);
-+	if (ret)
-+		return ret;
-+
-+	if ((reg_val & CW2015_MASK_ATHD) != CW2015_ATHD(cw_bat->alert_level)) {
-+		dev_dbg(cw_bat->dev, "Setting new alert level\n");
-+		reg_val &= ~CW2015_MASK_ATHD;
-+		reg_val |= ~CW2015_ATHD(cw_bat->alert_level);
-+		ret = regmap_write(cw_bat->regmap, CW2015_REG_CONFIG, reg_val);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	ret = regmap_read(cw_bat->regmap, CW2015_REG_CONFIG, &reg_val);
-+	if (ret)
-+		return ret;
-+
-+	if (!(reg_val & CW2015_CONFIG_UPDATE_FLG)) {
-+		dev_dbg(cw_bat->dev,
-+			"Battery profile not present, uploading battery profile\n");
-+		if (cw_bat->bat_profile) {
-+			ret = cw_update_profile(cw_bat);
-+			if (ret) {
-+				dev_err(cw_bat->dev,
-+					"Failed to upload battery profile\n");
-+				return ret;
-+			}
-+		} else {
-+			dev_warn(cw_bat->dev,
-+				 "No profile specified, continuing without profile\n");
-+		}
-+	} else if (cw_bat->bat_profile) {
-+		u8 bat_info[CW2015_SIZE_BATINFO];
-+
-+		ret = regmap_raw_read(cw_bat->regmap, CW2015_REG_BATINFO,
-+				      bat_info, CW2015_SIZE_BATINFO);
-+		if (ret) {
-+			dev_err(cw_bat->dev,
-+				"Failed to read stored battery profile\n");
-+			return ret;
-+		}
-+
-+		if (memcmp(bat_info, cw_bat->bat_profile, CW2015_SIZE_BATINFO)) {
-+			dev_warn(cw_bat->dev, "Replacing stored battery profile\n");
-+			ret = cw_update_profile(cw_bat);
-+			if (ret)
-+				return ret;
-+		}
-+	} else {
-+		dev_warn(cw_bat->dev,
-+			 "Can't check current battery profile, no profile provided\n");
-+	}
-+
-+	dev_dbg(cw_bat->dev, "Battery profile configured\n");
-+	return 0;
-+}
-+
-+static int cw_power_on_reset(struct cw_battery *cw_bat)
-+{
-+	int ret;
-+	unsigned char reset_val;
-+
-+	reset_val = CW2015_MODE_SLEEP;
-+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reset_val);
-+	if (ret)
-+		return ret;
-+
-+	/* wait for gauge to enter sleep */
-+	msleep(20);
-+
-+	reset_val = CW2015_MODE_NORMAL;
-+	ret = regmap_write(cw_bat->regmap, CW2015_REG_MODE, reset_val);
-+	if (ret)
-+		return ret;
-+
-+	ret = cw_init(cw_bat);
-+	if (ret)
-+		return ret;
-+	return 0;
-+}
-+
-+#define HYSTERESIS(current, previous, up, down) \
-+	(((current) < (previous) + (up)) && ((current) > (previous) - (down)))
-+
-+static int cw_get_soc(struct cw_battery *cw_bat)
-+{
-+	unsigned int soc;
-+	int ret;
-+
-+	ret = regmap_read(cw_bat->regmap, CW2015_REG_SOC, &soc);
-+	if (ret)
-+		return ret;
-+
-+	if (soc > 100) {
-+		int max_error_cycles =
-+			CW2015_BAT_SOC_ERROR_MS / cw_bat->poll_interval_ms;
-+
-+		dev_err(cw_bat->dev, "Invalid SoC %d%%\n", soc);
-+		cw_bat->read_errors++;
-+		if (cw_bat->read_errors > max_error_cycles) {
-+			dev_warn(cw_bat->dev,
-+				 "Too many invalid SoC reports, resetting gauge\n");
-+			cw_power_on_reset(cw_bat);
-+			cw_bat->read_errors = 0;
-+		}
-+		return cw_bat->soc;
-+	}
-+	cw_bat->read_errors = 0;
-+
-+	/* Reset gauge if stuck while charging */
-+	if (cw_bat->status == POWER_SUPPLY_STATUS_CHARGING && soc == cw_bat->soc) {
-+		int max_stuck_cycles =
-+			CW2015_BAT_CHARGING_STUCK_MS / cw_bat->poll_interval_ms;
-+
-+		cw_bat->charge_stuck_cnt++;
-+		if (cw_bat->charge_stuck_cnt > max_stuck_cycles) {
-+			dev_warn(cw_bat->dev,
-+				 "SoC stuck @%u%%, resetting gauge\n", soc);
-+			cw_power_on_reset(cw_bat);
-+			cw_bat->charge_stuck_cnt = 0;
-+		}
-+	} else {
-+		cw_bat->charge_stuck_cnt = 0;
-+	}
-+
-+	/* Ignore voltage dips during charge */
-+	if (cw_bat->charger_attached && HYSTERESIS(soc, cw_bat->soc, 0, 3))
-+		soc = cw_bat->soc;
-+
-+	/* Ignore voltage spikes during discharge */
-+	if (!cw_bat->charger_attached && HYSTERESIS(soc, cw_bat->soc, 3, 0))
-+		soc = cw_bat->soc;
-+
-+	return soc;
-+}
-+
-+static int cw_get_voltage(struct cw_battery *cw_bat)
-+{
-+	int ret, i, voltage_mv;
-+	u16 reg_val;
-+	u32 avg = 0;
-+
-+	for (i = 0; i < CW2015_AVERAGING_SAMPLES; i++) {
-+		ret = cw_read_word(cw_bat, CW2015_REG_VCELL, &reg_val);
-+		if (ret)
-+			return ret;
-+
-+		avg += reg_val;
-+	}
-+	avg /= CW2015_AVERAGING_SAMPLES;
-+
-+	/*
-+	 * 305 uV per ADC step
-+	 * Use 312 / 1024  as efficient approximation of 305 / 1000
-+	 * Negligible error of 0.1%
-+	 */
-+	voltage_mv = avg * 312 / 1024;
-+
-+	dev_dbg(cw_bat->dev, "Read voltage: %d mV, raw=0x%04x\n",
-+		voltage_mv, reg_val);
-+	return voltage_mv;
-+}
-+
-+static int cw_get_time_to_empty(struct cw_battery *cw_bat)
-+{
-+	int ret;
-+	u16 value16;
-+
-+	ret = cw_read_word(cw_bat, CW2015_REG_RRT_ALERT, &value16);
-+	if (ret)
-+		return ret;
-+
-+	return value16 & CW2015_MASK_SOC;
-+}
-+
-+static void cw_update_charge_status(struct cw_battery *cw_bat)
-+{
-+	int ret;
-+
-+	ret = power_supply_am_i_supplied(cw_bat->rk_bat);
-+	if (ret < 0) {
-+		dev_warn(cw_bat->dev, "Failed to get supply state: %d\n", ret);
-+	} else {
-+		bool charger_attached;
-+
-+		charger_attached = !!ret;
-+		if (cw_bat->charger_attached != charger_attached) {
-+			cw_bat->battery_changed = true;
-+			if (charger_attached)
-+				cw_bat->charge_count++;
-+		}
-+		cw_bat->charger_attached = charger_attached;
-+	}
-+}
-+
-+static void cw_update_soc(struct cw_battery *cw_bat)
-+{
-+	int soc;
-+
-+	soc = cw_get_soc(cw_bat);
-+	if (soc < 0)
-+		dev_err(cw_bat->dev, "Failed to get SoC from gauge: %d\n", soc);
-+	else if (cw_bat->soc != soc) {
-+		cw_bat->soc = soc;
-+		cw_bat->battery_changed = true;
-+	}
-+}
-+
-+static void cw_update_voltage(struct cw_battery *cw_bat)
-+{
-+	int voltage_mv;
-+
-+	voltage_mv = cw_get_voltage(cw_bat);
-+	if (voltage_mv < 0)
-+		dev_err(cw_bat->dev, "Failed to get voltage from gauge: %d\n",
-+			voltage_mv);
-+	else
-+		cw_bat->voltage_mv = voltage_mv;
-+}
-+
-+static void cw_update_status(struct cw_battery *cw_bat)
-+{
-+	int status = POWER_SUPPLY_STATUS_DISCHARGING;
-+
-+	if (cw_bat->charger_attached) {
-+		if (cw_bat->soc >= 100)
-+			status = POWER_SUPPLY_STATUS_FULL;
-+		else
-+			status = POWER_SUPPLY_STATUS_CHARGING;
-+	}
-+
-+	if (cw_bat->status != status)
-+		cw_bat->battery_changed = true;
-+	cw_bat->status = status;
-+}
-+
-+static void cw_update_time_to_empty(struct cw_battery *cw_bat)
-+{
-+	int time_to_empty;
-+
-+	time_to_empty = cw_get_time_to_empty(cw_bat);
-+	if (time_to_empty < 0)
-+		dev_err(cw_bat->dev, "Failed to get time to empty from gauge: %d\n",
-+			time_to_empty);
-+	else if (cw_bat->time_to_empty != time_to_empty) {
-+		cw_bat->time_to_empty = time_to_empty;
-+		cw_bat->battery_changed = true;
-+	}
-+}
-+
-+static void cw_bat_work(struct work_struct *work)
-+{
-+	struct delayed_work *delay_work;
-+	struct cw_battery *cw_bat;
-+	int ret;
-+	unsigned int reg_val;
-+
-+	delay_work = to_delayed_work(work);
-+	cw_bat = container_of(delay_work, struct cw_battery, battery_delay_work);
-+	ret = regmap_read(cw_bat->regmap, CW2015_REG_MODE, &reg_val);
-+	if (ret) {
-+		dev_err(cw_bat->dev, "Failed to read mode from gauge: %d\n", ret);
-+	} else {
-+		if ((reg_val & CW2015_MODE_SLEEP_MASK) == CW2015_MODE_SLEEP) {
-+			int i;
-+
-+			for (i = 0; i < CW2015_RESET_TRIES; i++) {
-+				if (!cw_power_on_reset(cw_bat))
-+					break;
-+			}
-+		}
-+		cw_update_soc(cw_bat);
-+		cw_update_voltage(cw_bat);
-+		cw_update_charge_status(cw_bat);
-+		cw_update_status(cw_bat);
-+		cw_update_time_to_empty(cw_bat);
-+	}
-+	dev_dbg(cw_bat->dev, "charger_attached = %d\n", cw_bat->charger_attached);
-+	dev_dbg(cw_bat->dev, "status = %d\n", cw_bat->status);
-+	dev_dbg(cw_bat->dev, "soc = %d%%\n", cw_bat->soc);
-+	dev_dbg(cw_bat->dev, "voltage = %dmV\n", cw_bat->voltage_mv);
-+
-+	if (cw_bat->battery_changed)
-+		power_supply_changed(cw_bat->rk_bat);
-+	cw_bat->battery_changed = false;
-+
-+	queue_delayed_work(cw_bat->battery_workqueue,
-+			   &cw_bat->battery_delay_work,
-+			   msecs_to_jiffies(cw_bat->poll_interval_ms));
-+}
-+
-+static bool cw_battery_valid_time_to_empty(struct cw_battery *cw_bat)
-+{
-+	return	cw_bat->time_to_empty > 0 &&
-+		cw_bat->time_to_empty < CW2015_MASK_SOC &&
-+		cw_bat->status == POWER_SUPPLY_STATUS_DISCHARGING;
-+}
-+
-+static int cw_battery_get_property(struct power_supply *psy,
-+				   enum power_supply_property psp,
-+				   union power_supply_propval *val)
-+{
-+	struct cw_battery *cw_bat;
-+
-+	cw_bat = power_supply_get_drvdata(psy);
-+	switch (psp) {
-+	case POWER_SUPPLY_PROP_CAPACITY:
-+		val->intval = cw_bat->soc;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_STATUS:
-+		val->intval = cw_bat->status;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_PRESENT:
-+		val->intval = !!cw_bat->voltage_mv;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-+		val->intval = cw_bat->voltage_mv * 1000;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
-+		if (cw_battery_valid_time_to_empty(cw_bat))
-+			val->intval = cw_bat->time_to_empty;
-+		else
-+			val->intval = 0;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_TECHNOLOGY:
-+		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
-+		val->intval = cw_bat->charge_count;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_CHARGE_FULL:
-+	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-+		if (cw_bat->battery.charge_full_design_uah > 0)
-+			val->intval = cw_bat->battery.charge_full_design_uah;
-+		else
-+			val->intval = 0;
-+		break;
-+
-+	case POWER_SUPPLY_PROP_CURRENT_NOW:
-+		if (cw_battery_valid_time_to_empty(cw_bat) &&
-+		    cw_bat->battery.charge_full_design_uah > 0) {
-+			/* calculate remaining capacity */
-+			val->intval = cw_bat->battery.charge_full_design_uah;
-+			val->intval = val->intval * cw_bat->soc / 100;
-+
-+			/* estimate current based on time to empty */
-+			val->intval = 60 * val->intval / cw_bat->time_to_empty;
-+		} else {
-+			val->intval = 0;
-+		}
-+
-+		break;
-+
-+	default:
-+		break;
-+	}
-+	return 0;
-+}
-+
-+static enum power_supply_property cw_battery_properties[] = {
-+	POWER_SUPPLY_PROP_CAPACITY,
-+	POWER_SUPPLY_PROP_STATUS,
-+	POWER_SUPPLY_PROP_PRESENT,
-+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
-+	POWER_SUPPLY_PROP_TECHNOLOGY,
-+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
-+	POWER_SUPPLY_PROP_CHARGE_FULL,
-+	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
-+	POWER_SUPPLY_PROP_CURRENT_NOW,
-+};
-+
-+static const struct power_supply_desc cw2015_bat_desc = {
-+	.name		= "cw2015-battery",
-+	.type		= POWER_SUPPLY_TYPE_BATTERY,
-+	.properties	= cw_battery_properties,
-+	.num_properties	= ARRAY_SIZE(cw_battery_properties),
-+	.get_property	= cw_battery_get_property,
-+};
-+
-+static int cw2015_parse_properties(struct cw_battery *cw_bat)
-+{
-+	struct device *dev = cw_bat->dev;
-+	int length;
-+	int ret;
-+
-+	length = device_property_count_u8(dev, "cellwise,battery-profile");
-+	if (length < 0) {
-+		dev_warn(cw_bat->dev,
-+			 "No battery-profile found, using current flash contents\n");
-+	} else if (length != CW2015_SIZE_BATINFO) {
-+		dev_err(cw_bat->dev, "battery-profile must be %d bytes\n",
-+			CW2015_SIZE_BATINFO);
-+		return -EINVAL;
-+	} else {
-+		cw_bat->bat_profile = devm_kzalloc(dev, length, GFP_KERNEL);
-+		if (!cw_bat->bat_profile)
-+			return -ENOMEM;
-+
-+		ret = device_property_read_u8_array(dev,
-+						"cellwise,battery-profile",
-+						cw_bat->bat_profile,
-+						length);
-+		if (ret)
-+			return ret;
-+	}
-+
-+	ret = device_property_read_u32(dev, "cellwise,monitor-interval-ms",
-+				       &cw_bat->poll_interval_ms);
-+	if (ret) {
-+		dev_dbg(cw_bat->dev, "Using default poll interval\n");
-+		cw_bat->poll_interval_ms = CW2015_DEFAULT_POLL_INTERVAL_MS;
-+	}
-+
-+	return 0;
-+}
-+
-+static const struct regmap_range regmap_ranges_rd_yes[] = {
-+	regmap_reg_range(CW2015_REG_VERSION, CW2015_REG_VERSION),
-+	regmap_reg_range(CW2015_REG_VCELL, CW2015_REG_CONFIG),
-+	regmap_reg_range(CW2015_REG_MODE, CW2015_REG_MODE),
-+	regmap_reg_range(CW2015_REG_BATINFO,
-+			CW2015_REG_BATINFO + CW2015_SIZE_BATINFO - 1),
-+};
-+
-+static const struct regmap_access_table regmap_rd_table = {
-+	.yes_ranges = regmap_ranges_rd_yes,
-+	.n_yes_ranges = 4,
-+};
-+
-+static const struct regmap_range regmap_ranges_wr_yes[] = {
-+	regmap_reg_range(CW2015_REG_RRT_ALERT, CW2015_REG_CONFIG),
-+	regmap_reg_range(CW2015_REG_MODE, CW2015_REG_MODE),
-+	regmap_reg_range(CW2015_REG_BATINFO,
-+			CW2015_REG_BATINFO + CW2015_SIZE_BATINFO - 1),
-+};
-+
-+static const struct regmap_access_table regmap_wr_table = {
-+	.yes_ranges = regmap_ranges_wr_yes,
-+	.n_yes_ranges = 3,
-+};
-+
-+static const struct regmap_range regmap_ranges_vol_yes[] = {
-+	regmap_reg_range(CW2015_REG_VCELL, CW2015_REG_SOC + 1),
-+};
-+
-+static const struct regmap_access_table regmap_vol_table = {
-+	.yes_ranges = regmap_ranges_vol_yes,
-+	.n_yes_ranges = 1,
-+};
-+
-+static const struct regmap_config cw2015_regmap_config = {
-+	.reg_bits = 8,
-+	.val_bits = 8,
-+	.rd_table = &regmap_rd_table,
-+	.wr_table = &regmap_wr_table,
-+	.volatile_table = &regmap_vol_table,
-+	.max_register = CW2015_REG_BATINFO + CW2015_SIZE_BATINFO - 1,
-+};
-+
-+static int cw_bat_probe(struct i2c_client *client)
-+{
-+	int ret;
-+	struct cw_battery *cw_bat;
-+	struct power_supply_config psy_cfg = { 0 };
-+
-+	cw_bat = devm_kzalloc(&client->dev, sizeof(*cw_bat), GFP_KERNEL);
-+	if (!cw_bat)
-+		return -ENOMEM;
-+
-+	i2c_set_clientdata(client, cw_bat);
-+	cw_bat->dev = &client->dev;
-+	cw_bat->soc = 1;
-+
-+	ret = cw2015_parse_properties(cw_bat);
-+	if (ret) {
-+		dev_err(cw_bat->dev, "Failed to parse cw2015 properties\n");
-+		return ret;
-+	}
-+
-+	cw_bat->regmap = devm_regmap_init_i2c(client, &cw2015_regmap_config);
-+	if (IS_ERR(cw_bat->regmap)) {
-+		dev_err(cw_bat->dev, "Failed to allocate regmap: %ld\n",
-+			PTR_ERR(cw_bat->regmap));
-+		return PTR_ERR(cw_bat->regmap);
-+	}
-+
-+	ret = cw_init(cw_bat);
-+	if (ret) {
-+		dev_err(cw_bat->dev, "Init failed: %d\n", ret);
-+		return ret;
-+	}
-+
-+	psy_cfg.drv_data = cw_bat;
-+	psy_cfg.fwnode = dev_fwnode(cw_bat->dev);
-+
-+	cw_bat->rk_bat = devm_power_supply_register(&client->dev,
-+						    &cw2015_bat_desc,
-+						    &psy_cfg);
-+	if (IS_ERR(cw_bat->rk_bat)) {
-+		dev_err(cw_bat->dev, "Failed to register power supply\n");
-+		return PTR_ERR(cw_bat->rk_bat);
-+	}
-+
-+	ret = power_supply_get_battery_info(cw_bat->rk_bat, &cw_bat->battery);
-+	if (ret) {
-+		dev_warn(cw_bat->dev,
-+			 "No monitored battery, some properties will be missing\n");
-+	}
-+
-+	cw_bat->battery_workqueue = create_singlethread_workqueue("rk_battery");
-+	INIT_DELAYED_WORK(&cw_bat->battery_delay_work, cw_bat_work);
-+	queue_delayed_work(cw_bat->battery_workqueue,
-+			   &cw_bat->battery_delay_work, msecs_to_jiffies(10));
-+	return 0;
-+}
-+
-+static int __maybe_unused cw_bat_suspend(struct device *dev)
-+{
-+	struct i2c_client *client = to_i2c_client(dev);
-+	struct cw_battery *cw_bat = i2c_get_clientdata(client);
-+
-+	cancel_delayed_work_sync(&cw_bat->battery_delay_work);
-+	return 0;
-+}
-+
-+static int __maybe_unused cw_bat_resume(struct device *dev)
-+{
-+	struct i2c_client *client = to_i2c_client(dev);
-+	struct cw_battery *cw_bat = i2c_get_clientdata(client);
-+
-+	queue_delayed_work(cw_bat->battery_workqueue,
-+			   &cw_bat->battery_delay_work, 0);
-+	return 0;
-+}
-+
-+SIMPLE_DEV_PM_OPS(cw_bat_pm_ops, cw_bat_suspend, cw_bat_resume);
-+
-+static int cw_bat_remove(struct i2c_client *client)
-+{
-+	struct cw_battery *cw_bat = i2c_get_clientdata(client);
-+
-+	cancel_delayed_work_sync(&cw_bat->battery_delay_work);
-+	power_supply_put_battery_info(cw_bat->rk_bat, &cw_bat->battery);
-+	return 0;
-+}
-+
-+static const struct i2c_device_id cw_bat_id_table[] = {
-+	{ "cw2015", 0 },
-+	{ }
-+};
-+
-+static const struct of_device_id cw2015_of_match[] = {
-+	{ .compatible = "cellwise,cw2015" },
-+	{ }
-+};
-+MODULE_DEVICE_TABLE(of, cw2015_of_match);
-+
-+static struct i2c_driver cw_bat_driver = {
-+	.driver = {
-+		.name = "cw2015",
-+		.of_match_table = cw2015_of_match,
-+		.pm = &cw_bat_pm_ops,
-+	},
-+	.probe_new = cw_bat_probe,
-+	.remove = cw_bat_remove,
-+	.id_table = cw_bat_id_table,
-+};
-+
-+module_i2c_driver(cw_bat_driver);
-+
-+MODULE_AUTHOR("xhc<xhc@rock-chips.com>");
-+MODULE_AUTHOR("Tobias Schramm <t.schramm@manjaro.org>");
-+MODULE_DESCRIPTION("cw2015/cw2013 battery driver");
-+MODULE_LICENSE("GPL");
--- 
-2.25.4
-
-
-From 898965fd3ac726e4ac2901ec0abb370e1968f4a5 Mon Sep 17 00:00:00 2001
+From ce1fd4c30259779c058c52c1471f6fdb718fd3a5 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:01:59 +0200
-Subject: [PATCH 02/25] leds: Add support for inverted LED triggers
+Subject: [PATCH 01/26] leds: Add support for inverted LED triggers
 
 Needs to be changed for upstream, invert via sysfs not trigger duplication
 
@@ -1237,10 +257,10 @@ index 2451962d1ec5..c15298502b39 100644
 2.25.4
 
 
-From c6366d834561973fdbff6a26e359ae6604bad782 Mon Sep 17 00:00:00 2001
+From 647fe78ac65a505aefff3825760185d66ada0da2 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:06:20 +0200
-Subject: [PATCH 03/25] soc: rockchip: Add rockchip suspend mode driver
+Subject: [PATCH 02/26] soc: rockchip: Add rockchip suspend mode driver
 
 Code gore, do not mainline. This belongs in ATF
 
@@ -1613,10 +633,10 @@ index 000000000000..0cccd6430ef6
 2.25.4
 
 
-From 0f4359f32783d6b1ca731e30eba8f2af64b23114 Mon Sep 17 00:00:00 2001
+From 6d5c59818c17acdb798be77487c99b5f2dd26be0 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:11:05 +0200
-Subject: [PATCH 04/25] firmware: Add Rockchip SIP driver
+Subject: [PATCH 03/26] firmware: Add Rockchip SIP driver
 
 Used exclusively for suspend signaling. Drop for mainline and
 use PSCI
@@ -1632,12 +652,12 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  create mode 100644 include/linux/rockchip/rockchip_sip.h
 
 diff --git a/drivers/firmware/Kconfig b/drivers/firmware/Kconfig
-index 8007d4aa76dc..37f8039a5e27 100644
+index fbd785dd0513..da0c3183e48a 100644
 --- a/drivers/firmware/Kconfig
 +++ b/drivers/firmware/Kconfig
-@@ -298,6 +298,13 @@ config TURRIS_MOX_RWTM
- config HAVE_ARM_SMCCC
- 	bool
+@@ -251,6 +251,13 @@ config QCOM_SCM_DOWNLOAD_MODE_DEFAULT
+ 
+ 	  Say Y here to enable "download mode" by default.
  
 +config ROCKCHIP_SIP
 +	bool "Rockchip SIP interface"
@@ -1646,21 +666,21 @@ index 8007d4aa76dc..37f8039a5e27 100644
 +	  Say Y here if you want to enable SIP callbacks for Rockchip platforms
 +	  This option enables support for communicating with the ATF.
 +
- source "drivers/firmware/psci/Kconfig"
- source "drivers/firmware/broadcom/Kconfig"
- source "drivers/firmware/google/Kconfig"
+ config TI_SCI_PROTOCOL
+ 	tristate "TI System Control Interface (TISCI) Message Protocol"
+ 	depends on TI_MESSAGE_MANAGER
 diff --git a/drivers/firmware/Makefile b/drivers/firmware/Makefile
-index e9fb838af4df..575f45d55939 100644
+index 99510be9f5ed..5533d2ffae54 100644
 --- a/drivers/firmware/Makefile
 +++ b/drivers/firmware/Makefile
-@@ -29,6 +29,7 @@ obj-y				+= meson/
+@@ -28,6 +28,7 @@ obj-y				+= meson/
  obj-$(CONFIG_GOOGLE_FIRMWARE)	+= google/
  obj-$(CONFIG_EFI)		+= efi/
  obj-$(CONFIG_UEFI_CPER)		+= efi/
 +obj-$(CONFIG_ROCKCHIP_SIP)	+= rockchip_sip.o
  obj-y				+= imx/
- obj-y				+= tegra/
- obj-y				+= xilinx/
+ obj-y				+= psci/
+ obj-y				+= smccc/
 diff --git a/drivers/firmware/rockchip_sip.c b/drivers/firmware/rockchip_sip.c
 new file mode 100644
 index 000000000000..6ed780c587e1
@@ -2088,10 +1108,10 @@ index 000000000000..b19f64ede981
 2.25.4
 
 
-From 56a1d88ef4af3e9b34f90cac46dec3ec3546efeb Mon Sep 17 00:00:00 2001
+From 9ef294895cf135238269e12457f104a42397b59b Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:12:56 +0200
-Subject: [PATCH 05/25] tty: serdev: support shutdown op
+Subject: [PATCH 04/26] tty: serdev: support shutdown op
 
 Allow serdev drivers to register a shutdown handler
 
@@ -2144,10 +1164,10 @@ index 9f14f9c12ec4..94050561325c 100644
 2.25.4
 
 
-From 6f9e10d6bcb68ec3db1bc45ac6eeff22d73e84e2 Mon Sep 17 00:00:00 2001
+From e31835178104ce7e82d2a573f80ea953bfb3012c Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:14:06 +0200
-Subject: [PATCH 06/25] bluetooth: hci_serdev: Clear registered bit on
+Subject: [PATCH 05/26] bluetooth: hci_serdev: Clear registered bit on
  unregister
 
 Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
@@ -2156,10 +1176,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 2 insertions(+)
 
 diff --git a/drivers/bluetooth/hci_serdev.c b/drivers/bluetooth/hci_serdev.c
-index 4652896d4990..72270f01e580 100644
+index 599855e4c57c..1ef9b965a9a0 100644
 --- a/drivers/bluetooth/hci_serdev.c
 +++ b/drivers/bluetooth/hci_serdev.c
-@@ -364,5 +364,7 @@ void hci_uart_unregister_device(struct hci_uart *hu)
+@@ -362,5 +362,7 @@ void hci_uart_unregister_device(struct hci_uart *hu)
  
  	hu->proto->close(hu);
  	serdev_device_close(hu->serdev);
@@ -2171,10 +1191,10 @@ index 4652896d4990..72270f01e580 100644
 2.25.4
 
 
-From 5c1ccc765769979b0c440840801a9a821c89087e Mon Sep 17 00:00:00 2001
+From 05f517f27ef921bace9197ed89f9a65108c3fddf Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:15:08 +0200
-Subject: [PATCH 07/25] bluetooth: hci_bcm: disable power on shutdown
+Subject: [PATCH 06/26] bluetooth: hci_bcm: disable power on shutdown
 
 Firmware behaves wonky when not power cycled over reboots
 
@@ -2184,10 +1204,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 18 insertions(+)
 
 diff --git a/drivers/bluetooth/hci_bcm.c b/drivers/bluetooth/hci_bcm.c
-index b236cb11c0dc..4c0b79393ced 100644
+index 8ea5ca8d71d6..6d5871992f79 100644
 --- a/drivers/bluetooth/hci_bcm.c
 +++ b/drivers/bluetooth/hci_bcm.c
-@@ -1472,6 +1472,23 @@ static void bcm_serdev_remove(struct serdev_device *serdev)
+@@ -1469,6 +1469,23 @@ static void bcm_serdev_remove(struct serdev_device *serdev)
  	hci_uart_unregister_device(&bcmdev->serdev_hu);
  }
  
@@ -2211,7 +1231,7 @@ index b236cb11c0dc..4c0b79393ced 100644
  #ifdef CONFIG_OF
  static struct bcm_device_data bcm4354_device_data = {
  	.no_early_set_baudrate = true,
-@@ -1497,6 +1514,7 @@ MODULE_DEVICE_TABLE(of, bcm_bluetooth_of_match);
+@@ -1494,6 +1511,7 @@ MODULE_DEVICE_TABLE(of, bcm_bluetooth_of_match);
  static struct serdev_device_driver bcm_serdev_driver = {
  	.probe = bcm_serdev_probe,
  	.remove = bcm_serdev_remove,
@@ -2223,10 +1243,10 @@ index b236cb11c0dc..4c0b79393ced 100644
 2.25.4
 
 
-From 4cac229795f388f45f2c32cbdc47ce9088be2129 Mon Sep 17 00:00:00 2001
+From bd0386f85726b943149d6fa730fd8ec8bcd6f854 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:16:52 +0200
-Subject: [PATCH 08/25] mmc: core: pwrseq_simple: disable mmc power on shutdown
+Subject: [PATCH 07/26] mmc: core: pwrseq_simple: disable mmc power on shutdown
 
 Fix for Broadcom SDIO WiFi modules. They misbehave if reinitialized
 without a power cycle.
@@ -2288,10 +1308,10 @@ index ea4d3670560e..38fe7e29aba6 100644
 2.25.4
 
 
-From 170d9b07db07142f8200c3454f43369c4ff893b4 Mon Sep 17 00:00:00 2001
+From 7aec49cb387e9f5ad51e8e0d3b01376a416d4ff2 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:19:31 +0200
-Subject: [PATCH 09/25] regulator: core: add generic suspend states support
+Subject: [PATCH 08/26] regulator: core: add generic suspend states support
 
 This commit adds genric suspend support for regualtors without
 explicit suspend ops.
@@ -2305,10 +1325,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  2 files changed, 47 insertions(+), 4 deletions(-)
 
 diff --git a/drivers/regulator/core.c b/drivers/regulator/core.c
-index 7486f6e4e613..b03b00ea5a53 100644
+index 03154f5b939f..2354ec5072a8 100644
 --- a/drivers/regulator/core.c
 +++ b/drivers/regulator/core.c
-@@ -5268,6 +5268,14 @@ void regulator_unregister(struct regulator_dev *rdev)
+@@ -5286,6 +5286,14 @@ void regulator_unregister(struct regulator_dev *rdev)
  EXPORT_SYMBOL_GPL(regulator_unregister);
  
  #ifdef CONFIG_SUSPEND
@@ -2323,7 +1343,7 @@ index 7486f6e4e613..b03b00ea5a53 100644
  /**
   * regulator_suspend - prepare regulators for system wide suspend
   * @dev: ``&struct device`` pointer that is passed to _regulator_suspend()
-@@ -5278,10 +5286,33 @@ static int regulator_suspend(struct device *dev)
+@@ -5296,10 +5304,33 @@ static int regulator_suspend(struct device *dev)
  {
  	struct regulator_dev *rdev = dev_to_rdev(dev);
  	suspend_state_t state = pm_suspend_target_state;
@@ -2357,7 +1377,7 @@ index 7486f6e4e613..b03b00ea5a53 100644
  	regulator_unlock(rdev);
  
  	return ret;
-@@ -5300,10 +5331,19 @@ static int regulator_resume(struct device *dev)
+@@ -5318,10 +5349,19 @@ static int regulator_resume(struct device *dev)
  
  	regulator_lock(rdev);
  
@@ -2382,10 +1402,10 @@ index 7486f6e4e613..b03b00ea5a53 100644
  	regulator_unlock(rdev);
  
 diff --git a/include/linux/regulator/driver.h b/include/linux/regulator/driver.h
-index 29d920516e0b..549b68c58e68 100644
+index 7eb9fea8e482..077a935b19c5 100644
 --- a/include/linux/regulator/driver.h
 +++ b/include/linux/regulator/driver.h
-@@ -482,6 +482,9 @@ struct regulator_dev {
+@@ -465,6 +465,9 @@ struct regulator_dev {
  
  	/* time when this regulator was disabled last time */
  	unsigned long last_off_jiffy;
@@ -2399,10 +1419,10 @@ index 29d920516e0b..549b68c58e68 100644
 2.25.4
 
 
-From b8ea100dcfc176fce064748f6a68e815ef37e87c Mon Sep 17 00:00:00 2001
+From dd4206695a4135f6a3a3b228f33663bfa1987e27 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:22:09 +0200
-Subject: [PATCH 10/25] usb: typec: bus: Catch crash due to partner NULL value
+Subject: [PATCH 09/26] usb: typec: bus: Catch crash due to partner NULL value
 
 Think this has been fixed upstream, have not seen it happen for ages.
 Drop on next rebase.
@@ -2436,10 +1456,10 @@ index e8ddb81cb6df..1d0265f46441 100644
 2.25.4
 
 
-From 6a0d6deeac14f5347dd1310fdcbe8f510b29cfee Mon Sep 17 00:00:00 2001
+From 34dd01fcb581d221aacb960a9e3a3030429c6638 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:23:54 +0200
-Subject: [PATCH 11/25] usb: typec: tcpm: add hacky generic altmode support
+Subject: [PATCH 10/26] usb: typec: tcpm: add hacky generic altmode support
 
 This is a hack and it is based on extcon. Do not try to mainline
 unless you are in need for some retroactive abortion by the
@@ -2692,10 +1712,10 @@ index 82b19ebd7838..9858df11590b 100644
 2.25.4
 
 
-From d5565800b947e23bc47efa6c26f36e69d54cfd4e Mon Sep 17 00:00:00 2001
+From 32dbd649f3251732cccf5b0bac2e0e2334a6e3bf Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:25:32 +0200
-Subject: [PATCH 12/25] phy: rockchip: typec: Set extcon capabilities
+Subject: [PATCH 11/26] phy: rockchip: typec: Set extcon capabilities
 
 Do not mainline, hack.
 
@@ -2743,10 +1763,10 @@ index 24563160197f..f5b497b4b97e 100644
 2.25.4
 
 
-From 82ce1a4cadd37691e59074d03e547a1ea96d9a13 Mon Sep 17 00:00:00 2001
+From ea5ed45f85ea1184106aa55d2eafa94a8ede38bf Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:26:27 +0200
-Subject: [PATCH 13/25] usb: typec: altmodes: displayport: Add hacky, generic
+Subject: [PATCH 12/26] usb: typec: altmodes: displayport: Add hacky, generic
  altmode detection
 
 Do not mainline, hack.
@@ -2865,10 +1885,10 @@ index 0edfb89e04a8..c87cd57302cd 100644
 2.25.4
 
 
-From 5d8a749069f3b822eba0b08733f46f736452e63b Mon Sep 17 00:00:00 2001
+From ef76d3135780573232aa2d6c60858eec118c8a7a Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:34:47 +0200
-Subject: [PATCH 14/25] sound: soc: codecs: es8316: Run micdetect only if jack
+Subject: [PATCH 13/26] sound: soc: codecs: es8316: Run micdetect only if jack
  status asserted
 
 Think this is (was?) required to prevent flapping of detection status on
@@ -2896,10 +1916,10 @@ index 36eef1fb3d18..b303ebbd5f53 100644
 2.25.4
 
 
-From 6bd713f297441deb195b51420200cfe1a2739bbe Mon Sep 17 00:00:00 2001
+From 8ce60b3793e5817da651ec57714e9fabde51b8cc Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:36:47 +0200
-Subject: [PATCH 15/25] ASoC: soc-jack.c: supported inverted jack detect GPIOs
+Subject: [PATCH 14/26] ASoC: soc-jack.c: supported inverted jack detect GPIOs
 
 Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
 ---
@@ -2907,10 +1927,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 4 insertions(+), 3 deletions(-)
 
 diff --git a/sound/soc/soc-jack.c b/sound/soc/soc-jack.c
-index b5748dcd490f..a8c199e361e2 100644
+index 0f1820f36b4d..8d9d77814f33 100644
 --- a/sound/soc/soc-jack.c
 +++ b/sound/soc/soc-jack.c
-@@ -254,8 +254,6 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
+@@ -216,8 +216,6 @@ static void snd_soc_jack_gpio_detect(struct snd_soc_jack_gpio *gpio)
  	int report;
  
  	enable = gpiod_get_value_cansleep(gpio->desc);
@@ -2919,7 +1939,7 @@ index b5748dcd490f..a8c199e361e2 100644
  
  	if (enable)
  		report = gpio->report;
-@@ -384,6 +382,9 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
+@@ -346,6 +344,9 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
  				goto undo;
  			}
  		} else {
@@ -2929,7 +1949,7 @@ index b5748dcd490f..a8c199e361e2 100644
  			/* legacy GPIO number */
  			if (!gpio_is_valid(gpios[i].gpio)) {
  				dev_err(jack->card->dev,
-@@ -393,7 +394,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
+@@ -355,7 +356,7 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
  				goto undo;
  			}
  
@@ -2942,10 +1962,10 @@ index b5748dcd490f..a8c199e361e2 100644
 2.25.4
 
 
-From d7e2f4a72fed0092a87be90c800db8911f66b5bb Mon Sep 17 00:00:00 2001
+From dcb8c9e5ede133d3e90f6d2486f68fbbc890b8ba Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:38:03 +0200
-Subject: [PATCH 16/25] arm64: dts: rockchip: add default rk3399
+Subject: [PATCH 15/26] arm64: dts: rockchip: add default rk3399
  rockchip-suspend node
 
 Again this has no place in mainline. Should be handled by ATF
@@ -2957,7 +1977,7 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 24 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399.dtsi b/arch/arm64/boot/dts/rockchip/rk3399.dtsi
-index 1448f358ed0a..a91fc5c8b43b 100644
+index 2581e9cc7a1d..4290bd1e69fb 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399.dtsi
 +++ b/arch/arm64/boot/dts/rockchip/rk3399.dtsi
 @@ -9,6 +9,7 @@
@@ -2968,7 +1988,7 @@ index 1448f358ed0a..a91fc5c8b43b 100644
  #include <dt-bindings/thermal/thermal.h>
  
  / {
-@@ -2652,4 +2653,27 @@ pcie_clkreqnb_cpm: pci-clkreqnb-cpm {
+@@ -2664,4 +2665,27 @@
  		};
  
  	};
@@ -3000,10 +2020,10 @@ index 1448f358ed0a..a91fc5c8b43b 100644
 2.25.4
 
 
-From 843b3482181b6ad5dcb9861c145c090ee77f7e55 Mon Sep 17 00:00:00 2001
+From 91a2a2e359b97e8059e16df4e814cd76a5effb44 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:39:55 +0200
-Subject: [PATCH 17/25] arm64: dts: rockchip: enable earlycon
+Subject: [PATCH 16/26] arm64: dts: rockchip: enable earlycon
 
 Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
 ---
@@ -3011,10 +2031,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 1 insertion(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index c49982dfd8fc..b12b19391daa 100644
+index cb0245d2226d..95aee364b170 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -19,6 +19,7 @@ / {
+@@ -19,6 +19,7 @@
  	compatible = "pine64,pinebook-pro", "rockchip,rk3399";
  
  	chosen {
@@ -3026,10 +2046,10 @@ index c49982dfd8fc..b12b19391daa 100644
 2.25.4
 
 
-From 05723ca70c204c501c48284601bd587807dc0fd5 Mon Sep 17 00:00:00 2001
+From 50f71a8bbc64a1e7d935b1927211500d526afab3 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:40:31 +0200
-Subject: [PATCH 18/25] arm64: dts: rockchip: reserve memory for ATF rockchip
+Subject: [PATCH 17/26] arm64: dts: rockchip: reserve memory for ATF rockchip
  SIP
 
 Definitely not for mainline
@@ -3040,10 +2060,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 11 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index b12b19391daa..85e4b8f9be2a 100644
+index 95aee364b170..fdc11f7b87dd 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -23,6 +23,11 @@ chosen {
+@@ -23,6 +23,11 @@
  		stdout-path = "serial2:1500000n8";
  	};
  
@@ -3055,7 +2075,7 @@ index b12b19391daa..85e4b8f9be2a 100644
  	backlight: edp-backlight {
  		compatible = "pwm-backlight";
  		power-supply = <&vcc_12v>;
-@@ -126,6 +131,12 @@ sdio_pwrseq: sdio-pwrseq {
+@@ -126,6 +131,12 @@
  		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
  	};
  
@@ -3072,10 +2092,10 @@ index b12b19391daa..85e4b8f9be2a 100644
 2.25.4
 
 
-From e6375ceb68fa97431615e8cc5f379ac806192bae Mon Sep 17 00:00:00 2001
+From 711281737deced0f90a859a8cbb77e8757015962 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:41:41 +0200
-Subject: [PATCH 19/25] arm64: dts: rockchip: add cw2015 fuel gauge
+Subject: [PATCH 18/26] arm64: dts: rockchip: add cw2015 fuel gauge
 
 Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
 ---
@@ -3083,10 +2103,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 25 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index 85e4b8f9be2a..75eebcf4b5e3 100644
+index fdc11f7b87dd..aed6426273c0 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -34,6 +34,13 @@ backlight: edp-backlight {
+@@ -34,6 +34,13 @@
  		pwms = <&pwm0 0 740740 0>;
  	};
  
@@ -3100,7 +2120,7 @@ index 85e4b8f9be2a..75eebcf4b5e3 100644
  	edp_panel: edp-panel {
  		compatible = "boe,nv140fhmn49";
  		backlight = <&backlight>;
-@@ -753,6 +760,24 @@ usbc_dp: endpoint {
+@@ -753,6 +760,24 @@
  			};
  		};
  	};
@@ -3129,10 +2149,10 @@ index 85e4b8f9be2a..75eebcf4b5e3 100644
 2.25.4
 
 
-From 72b64c73b36a2d25e260cb1b4ecb0b8524629c04 Mon Sep 17 00:00:00 2001
+From a0a431a31237cfd281a16ca0dd1ca31853fb1752 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:42:54 +0200
-Subject: [PATCH 20/25] arm64: dts: rockchip: use power led for disk-activity
+Subject: [PATCH 19/26] arm64: dts: rockchip: use power led for disk-activity
  indication
 
 Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
@@ -3141,10 +2161,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index 75eebcf4b5e3..56e767a03f85 100644
+index aed6426273c0..73af605d6175 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -110,7 +110,8 @@ green-led {
+@@ -110,7 +110,8 @@
  			default-state = "on";
  			function = LED_FUNCTION_POWER;
  			gpios = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
@@ -3153,15 +2173,15 @@ index 75eebcf4b5e3..56e767a03f85 100644
 +			linux,default-trigger = "mmc2-inverted";
  		};
  
- 		red-led {
+ 		red_led: led-1 {
 -- 
 2.25.4
 
 
-From 2aaad78d2b415a27874911937393e68338041b28 Mon Sep 17 00:00:00 2001
+From 8157899a63c0b4fb6ae334d0787508c42263b20b Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:43:27 +0200
-Subject: [PATCH 21/25] arm64: dts: rockchip: add oficially unsupported 2GHz
+Subject: [PATCH 20/26] arm64: dts: rockchip: add oficially unsupported 2GHz
  opp
 
 No mainlining here.
@@ -3172,10 +2192,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 7 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index 56e767a03f85..3afd92ed3dde 100644
+index 73af605d6175..f218c2a36434 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -392,6 +392,13 @@ mains_charger: dc-charger {
+@@ -392,6 +392,13 @@
  	};
  };
  
@@ -3193,10 +2213,10 @@ index 56e767a03f85..3afd92ed3dde 100644
 2.25.4
 
 
-From 57c61f56278278e71086d28fad8ef700ef8a08e0 Mon Sep 17 00:00:00 2001
+From ffae4f74bf4fe83cb43ca20c9585523851ddff50 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:44:15 +0200
-Subject: [PATCH 22/25] arm64: dts: rockchip: add typec extcon hack
+Subject: [PATCH 21/26] arm64: dts: rockchip: add typec extcon hack
 
 Not for mainline
 
@@ -3206,10 +2226,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 5 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index 3afd92ed3dde..27a7b6b5bf52 100644
+index f218c2a36434..950f3a7bb27a 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -401,6 +401,7 @@ opp08 {
+@@ -401,6 +401,7 @@
  
  &cdn_dp {
  	status = "okay";
@@ -3217,7 +2237,7 @@ index 3afd92ed3dde..27a7b6b5bf52 100644
  };
  
  &cpu_b0 {
-@@ -735,6 +736,9 @@ connector {
+@@ -735,6 +736,9 @@
  				<PDO_FIXED(5000, 1400, PDO_FIXED_USB_COMM)>;
  			try-power-role = "sink";
  
@@ -3227,7 +2247,7 @@ index 3afd92ed3dde..27a7b6b5bf52 100644
  			ports {
  				#address-cells = <1>;
  				#size-cells = <0>;
-@@ -1003,6 +1007,7 @@ spiflash: flash@0 {
+@@ -1002,6 +1006,7 @@
  };
  
  &tcphy0 {
@@ -3239,10 +2259,10 @@ index 3afd92ed3dde..27a7b6b5bf52 100644
 2.25.4
 
 
-From 35f8f124a902c1493a1e70561703f4e5933c18ca Mon Sep 17 00:00:00 2001
+From 10b301fd7ca16ea327fdc30dafdd0e39d9f0e745 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 14:44:40 +0200
-Subject: [PATCH 23/25] arm64: dts: rockchip: add rockchip-suspend node
+Subject: [PATCH 22/26] arm64: dts: rockchip: add rockchip-suspend node
 
 No mainline
 
@@ -3252,10 +2272,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 23 insertions(+)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index 27a7b6b5bf52..e2f83b556b6f 100644
+index 950f3a7bb27a..ef9c8daa74a7 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -955,6 +955,29 @@ &pwm2 {
+@@ -954,6 +954,29 @@
  	status = "okay";
  };
  
@@ -3289,10 +2309,10 @@ index 27a7b6b5bf52..e2f83b556b6f 100644
 2.25.4
 
 
-From db9a63c28982ab39ffaa5a9fc174bf8d2937619a Mon Sep 17 00:00:00 2001
+From 936a9a224504a2497cec4fa331a1953fe6e4dfee Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Thu, 28 May 2020 15:20:15 +0200
-Subject: [PATCH 24/25] arm64: configs: add defconfig for Pinebook Pro
+Subject: [PATCH 23/26] arm64: configs: add defconfig for Pinebook Pro
 
 Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
 ---
@@ -6310,10 +5330,10 @@ index 000000000000..bc7bcee200e4
 2.25.4
 
 
-From a8f4db8a726e5e4552e61333dcd9ea1ff35f39f9 Mon Sep 17 00:00:00 2001
+From d12d494c5ef4faaaf1ecd92d74692c9a01ce9801 Mon Sep 17 00:00:00 2001
 From: Tobias Schramm <t.schramm@manjaro.org>
 Date: Sat, 6 Jun 2020 23:45:10 +0200
-Subject: [PATCH 25/25] arm64: dts: rockchip: setup USB type c port as dual
+Subject: [PATCH 24/26] arm64: dts: rockchip: setup USB type c port as dual
  data role
 
 Some chargers try to put the charged device into device data role.
@@ -6326,10 +5346,10 @@ Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-index e2f83b556b6f..f3f5e953d7bf 100644
+index ef9c8daa74a7..3b2ef918d386 100644
 --- a/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
 +++ b/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
-@@ -726,7 +726,7 @@ fusb0: fusb30x@22 {
+@@ -726,7 +726,7 @@
  
  		connector {
  			compatible = "usb-c-connector";
@@ -6338,6 +5358,199 @@ index e2f83b556b6f..f3f5e953d7bf 100644
  			label = "USB-C";
  			op-sink-microwatt = <1000000>;
  			power-role = "dual";
+-- 
+2.25.4
+
+
+From f644f660a561538b622d26b2afc5374f4a240cee Mon Sep 17 00:00:00 2001
+From: Tobias Schramm <t.schramm@manjaro.org>
+Date: Tue, 16 Jun 2020 10:11:10 +0200
+Subject: [PATCH 25/26] arm64: configs: Update Pinbook Pro defconfig to
+ v5.8-rc1
+
+---
+ arch/arm64/configs/pinebook_pro_defconfig | 38 ++++++++++-------------
+ 1 file changed, 16 insertions(+), 22 deletions(-)
+
+diff --git a/arch/arm64/configs/pinebook_pro_defconfig b/arch/arm64/configs/pinebook_pro_defconfig
+index bc7bcee200e4..2977cea49142 100644
+--- a/arch/arm64/configs/pinebook_pro_defconfig
++++ b/arch/arm64/configs/pinebook_pro_defconfig
+@@ -17,7 +17,6 @@ CONFIG_LOG_BUF_SHIFT=23
+ CONFIG_LOG_CPU_MAX_BUF_SHIFT=14
+ CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT=15
+ CONFIG_MEMCG=y
+-CONFIG_MEMCG_SWAP=y
+ CONFIG_BLK_CGROUP=y
+ CONFIG_CFS_BANDWIDTH=y
+ CONFIG_CGROUP_PIDS=y
+@@ -628,6 +627,7 @@ CONFIG_NFC_ST21NFCA_I2C=m
+ CONFIG_PCI=y
+ CONFIG_PCIEPORTBUS=y
+ CONFIG_HOTPLUG_PCI_PCIE=y
++CONFIG_PCIEAER=y
+ CONFIG_PCIEAER_INJECT=m
+ CONFIG_PCIE_ECRC=y
+ CONFIG_PCI_STUB=y
+@@ -1229,7 +1229,6 @@ CONFIG_TOUCHSCREEN_ZFORCE=m
+ CONFIG_INPUT_MISC=y
+ CONFIG_INPUT_E3X0_BUTTON=m
+ CONFIG_INPUT_MMA8450=m
+-CONFIG_INPUT_GP2A=m
+ CONFIG_INPUT_ATI_REMOTE2=m
+ CONFIG_INPUT_KEYSPAN_REMOTE=m
+ CONFIG_INPUT_KXTJ9=m
+@@ -1250,6 +1249,7 @@ CONFIG_SERIO_ARC_PS2=m
+ # CONFIG_LEGACY_PTYS is not set
+ CONFIG_SERIAL_8250=y
+ # CONFIG_SERIAL_8250_DEPRECATED_OPTIONS is not set
++# CONFIG_SERIAL_8250_16550A_VARIANTS is not set
+ CONFIG_SERIAL_8250_CONSOLE=y
+ CONFIG_SERIAL_8250_NR_UARTS=32
+ CONFIG_SERIAL_8250_EXTENDED=y
+@@ -1578,18 +1578,13 @@ CONFIG_IR_SERIAL=m
+ CONFIG_IR_SERIAL_TRANSMITTER=y
+ CONFIG_IR_SIR=m
+ CONFIG_RC_XBOX_DVD=m
+-CONFIG_MEDIA_SUPPORT=y
+-CONFIG_MEDIA_CAMERA_SUPPORT=y
+-CONFIG_MEDIA_ANALOG_TV_SUPPORT=y
+-CONFIG_MEDIA_DIGITAL_TV_SUPPORT=y
+-CONFIG_MEDIA_RADIO_SUPPORT=y
+-CONFIG_MEDIA_SDR_SUPPORT=y
+-CONFIG_MEDIA_CEC_SUPPORT=y
+ CONFIG_MEDIA_CEC_RC=y
+-CONFIG_MEDIA_CONTROLLER_REQUEST_API=y
++CONFIG_USB_PULSE8_CEC=m
++CONFIG_USB_RAINSHADOW_CEC=m
++CONFIG_MEDIA_SUPPORT=y
++CONFIG_MEDIA_SUBDRV_AUTOSELECT=y
+ CONFIG_VIDEO_V4L2_SUBDEV_API=y
+ CONFIG_DVB_MAX_ADAPTERS=8
+-CONFIG_DVB_DYNAMIC_MINORS=y
+ CONFIG_MEDIA_USB_SUPPORT=y
+ CONFIG_USB_VIDEO_CLASS=m
+ CONFIG_USB_M5602=m
+@@ -1710,8 +1705,6 @@ CONFIG_VIDEO_EM28XX_ALSA=m
+ CONFIG_VIDEO_EM28XX_DVB=m
+ CONFIG_USB_AIRSPY=m
+ CONFIG_USB_HACKRF=m
+-CONFIG_USB_PULSE8_CEC=m
+-CONFIG_USB_RAINSHADOW_CEC=m
+ CONFIG_MEDIA_PCI_SUPPORT=y
+ CONFIG_VIDEO_SOLO6X10=m
+ CONFIG_VIDEO_TW68=m
+@@ -1756,10 +1749,6 @@ CONFIG_DVB_HOPPER=m
+ CONFIG_DVB_NGENE=m
+ CONFIG_DVB_DDBRIDGE=m
+ CONFIG_DVB_SMIPCIE=m
+-CONFIG_V4L_PLATFORM_DRIVERS=y
+-CONFIG_V4L_MEM2MEM_DRIVERS=y
+-CONFIG_VIDEO_ROCKCHIP_RGA=m
+-CONFIG_SMS_SDIO_DRV=m
+ CONFIG_RADIO_SI470X=m
+ CONFIG_USB_SI470X=m
+ CONFIG_I2C_SI470X=m
+@@ -1778,6 +1767,11 @@ CONFIG_RADIO_TEA5764=m
+ CONFIG_RADIO_SAA7706H=m
+ CONFIG_RADIO_TEF6862=m
+ CONFIG_RADIO_WL1273=m
++CONFIG_V4L_PLATFORM_DRIVERS=y
++CONFIG_V4L_MEM2MEM_DRIVERS=y
++CONFIG_VIDEO_ROCKCHIP_RGA=m
++CONFIG_SMS_SDIO_DRV=m
++CONFIG_DVB_DUMMY_FE=m
+ CONFIG_DRM=m
+ CONFIG_DRM_LOAD_EDID_FIRMWARE=y
+ CONFIG_DRM_I2C_NXP_TDA998X=m
+@@ -1799,7 +1793,6 @@ CONFIG_ROCKCHIP_RGB=y
+ CONFIG_DRM_UDL=m
+ CONFIG_DRM_AST=m
+ CONFIG_DRM_MGAG200=m
+-CONFIG_DRM_CIRRUS_QEMU=m
+ CONFIG_DRM_QXL=m
+ CONFIG_DRM_BOCHS=m
+ CONFIG_DRM_VIRTIO_GPU=m
+@@ -1817,6 +1810,7 @@ CONFIG_DRM_I2C_ADV7511=m
+ CONFIG_DRM_I2C_ADV7511_AUDIO=y
+ CONFIG_DRM_DW_HDMI_CEC=m
+ CONFIG_DRM_HISI_KIRIN=m
++CONFIG_DRM_CIRRUS_QEMU=m
+ CONFIG_DRM_PL111=m
+ CONFIG_DRM_PANFROST=m
+ CONFIG_FB=y
+@@ -2344,6 +2338,7 @@ CONFIG_RTC_DRV_RP5C01=m
+ CONFIG_RTC_DRV_V3020=m
+ CONFIG_RTC_DRV_CROS_EC=y
+ CONFIG_RTC_DRV_PL031=y
++CONFIG_DMADEVICES=y
+ CONFIG_MV_XOR_V2=y
+ CONFIG_PL330_DMA=y
+ CONFIG_QCOM_HIDMA_MGMT=y
+@@ -2391,6 +2386,7 @@ CONFIG_ADE7854=m
+ CONFIG_AD2S1210=m
+ CONFIG_STAGING_MEDIA=y
+ CONFIG_VIDEO_HANTRO=y
++CONFIG_VIDEO_ROCKCHIP_VDEC=m
+ CONFIG_VIDEO_USBVISION=m
+ CONFIG_FB_TFT=m
+ CONFIG_FB_TFT_AGM1264K_FL=m
+@@ -2434,9 +2430,6 @@ CONFIG_CROS_EC_LIGHTBAR=m
+ CONFIG_CROS_EC_VBC=m
+ CONFIG_CROS_EC_DEBUGFS=m
+ CONFIG_CROS_EC_SYSFS=m
+-CONFIG_COMMON_CLK_VERSATILE=y
+-CONFIG_CLK_SP810=y
+-CONFIG_CLK_VEXPRESS_OSC=y
+ CONFIG_COMMON_CLK_RK808=y
+ CONFIG_COMMON_CLK_SCPI=y
+ CONFIG_COMMON_CLK_XGENE=y
+@@ -2913,7 +2906,6 @@ CONFIG_NLS_MAC_TURKISH=m
+ CONFIG_DLM=m
+ CONFIG_DLM_DEBUG=y
+ CONFIG_PERSISTENT_KEYRINGS=y
+-CONFIG_BIG_KEYS=y
+ CONFIG_TRUSTED_KEYS=m
+ CONFIG_ENCRYPTED_KEYS=y
+ CONFIG_SECURITY=y
+@@ -2926,7 +2918,9 @@ CONFIG_CRYPTO_USER=m
+ # CONFIG_CRYPTO_MANAGER_DISABLE_TESTS is not set
+ CONFIG_CRYPTO_PCRYPT=m
+ CONFIG_CRYPTO_DH=m
++CONFIG_CRYPTO_GCM=y
+ CONFIG_CRYPTO_AEGIS128=m
++CONFIG_CRYPTO_SEQIV=y
+ CONFIG_CRYPTO_CFB=m
+ CONFIG_CRYPTO_LRW=m
+ CONFIG_CRYPTO_OFB=m
+-- 
+2.25.4
+
+
+From 57cc0e9636c160cbae5845cedf0d463e87a6023c Mon Sep 17 00:00:00 2001
+From: Tobias Schramm <t.schramm@manjaro.org>
+Date: Tue, 16 Jun 2020 21:29:29 +0200
+Subject: [PATCH 26/26] soc: rockchip: Port rockchip_pm_config driver to Linux
+ 5.8
+
+Signed-off-by: Tobias Schramm <t.schramm@manjaro.org>
+---
+ drivers/soc/rockchip/rockchip_pm_config.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/soc/rockchip/rockchip_pm_config.c b/drivers/soc/rockchip/rockchip_pm_config.c
+index 43b2e0f33343..07a0ff9465d3 100644
+--- a/drivers/soc/rockchip/rockchip_pm_config.c
++++ b/drivers/soc/rockchip/rockchip_pm_config.c
+@@ -99,7 +99,7 @@ static void rockchip_pm_virt_pwroff_prepare(void)
+ 
+ 	regulator_suspend_prepare(PM_SUSPEND_MEM);
+ 
+-	error = disable_nonboot_cpus();
++	error = freeze_secondary_cpus(0);
+ 	if (error) {
+ 		pr_err("Disable nonboot cpus failed!\n");
+ 		return;
 -- 
 2.25.4
 
