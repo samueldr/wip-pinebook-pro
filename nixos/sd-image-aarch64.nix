@@ -1,8 +1,8 @@
-{ config, lib, pkgs, ... }:
+{ nixpkgs, config, lib, pkgs, ... }:
 
 let
   extlinux-conf-builder =
-    import <nixpkgs/nixos/modules/system/boot/loader/generic-extlinux-compatible/extlinux-conf-builder.nix> {
+    import "${nixpkgs}/nixos/modules/system/boot/loader/generic-extlinux-compatible/extlinux-conf-builder.nix" {
       pkgs = pkgs.buildPackages;
     };
 in
