@@ -12,6 +12,7 @@
     } // flake-utils.lib.eachDefaultSystem (
       system:
         let
+          inherit (nixpkgs) lib;
           darwin_network_cmds_openssl_overlay = final: prev: {
             darwin = prev.darwin // {
               network_cmds = prev.darwin.network_cmds.override { openssl_1_0_2 = prev.openssl; };
@@ -39,13 +40,19 @@
 
             defaultPackage = packages.sdImage;
 
-            nixosConfigurations = nixpkgs.lib.nixosSystem {
+            nixosConfigurations = lib.nixosSystem {
               system = "aarch64-linux";
               # Pass nixpkgs as an argument to each module so that modules from nixpkgs can be imported purely
               specialArgs = { inherit nixpkgs; };
               modules = [
                 { nixpkgs.config.allowUnfree = true; }
-                (if system == "aarch64-linux" then "${self}/configuration.nix" else "${self}/with-cross.nix")
+                "${self}/configuration.nix"
+                (
+                  lib.optionalAttrs (system != "aarch64-linux") {
+                    imports = [ "${self}/cross-hacks.nix" ];
+                    nixpkgs.crossSystem.system = "aarch64-linux";
+                  }
+                )
               ];
             };
 
