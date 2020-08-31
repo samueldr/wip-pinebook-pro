@@ -9,19 +9,14 @@
   outputs = { self, nixpkgs, flake-utils }:
     {
       overlay = final: prev: import "${self}/overlay.nix" final prev;
-    } // flake-utils.lib.eachDefaultSystem (
+    } // flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (
       system:
         let
           inherit (nixpkgs) lib;
-          darwin_network_cmds_openssl_overlay = final: prev: {
-            darwin = prev.darwin // {
-              network_cmds = prev.darwin.network_cmds.override { openssl_1_0_2 = prev.openssl; };
-            };
-          };
           pkgsNative = import nixpkgs {
             inherit system;
             config.allowUnfree = true;
-            overlays = [ darwin_network_cmds_openssl_overlay self.overlay ];
+            overlays = [ self.overlay ];
           };
           pkgs = if system == "aarch64-linux" then pkgsNative else pkgsNative.pkgsCross.aarch64-multiplatform;
         in
