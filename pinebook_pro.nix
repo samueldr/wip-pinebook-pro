@@ -41,24 +41,52 @@
     "rtc_rk808"
   ];
 
-  # https://gitlab.manjaro.org/manjaro-arm/packages/community/pinebookpro-post-install/blob/master/10-usb-kbd.hwdb
-  services.udev.extraHwdb = ''
-    evdev:input:b0003v258Ap001E*
-      KEYBOARD_KEY_700a5=brightnessdown
-      KEYBOARD_KEY_700a6=brightnessup
-      KEYBOARD_KEY_70066=sleep 
+  services.udev.extraHwdb = lib.concatStrings [
+    # https://gitlab.manjaro.org/manjaro-arm/packages/community/pinebookpro-post-install/blob/master/10-usb-kbd.hwdb
+    ''
+      evdev:input:b0003v258Ap001E*
+        KEYBOARD_KEY_700a5=brightnessdown
+        KEYBOARD_KEY_700a6=brightnessup
+        KEYBOARD_KEY_70066=sleep 
+    ''
+
+    # https://github.com/elementary/os/blob/05a5a931806d4ed8bc90396e9e91b5ac6155d4d4/build-pinebookpro.sh#L253-L257
+    # Disable the "keyboard mouse" in libinput. This is reported by the keyboard firmware
+    # and is probably a placeholder for a TrackPoint style mouse that doesn't exist
+    ''
+      evdev:input:b0003v258Ap001Ee0110-e0,1,2,4,k110,111,112,r0,1,am4,lsfw
+        ID_INPUT=0
+        ID_INPUT_MOUSE=0
+    ''
+  ];
+  
+  # https://github.com/elementary/os/blob/05a5a931806d4ed8bc90396e9e91b5ac6155d4d4/build-pinebookpro.sh#L253-L257
+  # Mark the keyboard as internal, so that "disable when typing" works for the touchpad
+  environment.etc."libinput/local-overrides.quirks".text = ''
+    [Pinebook Pro Keyboard]
+    MatchUdevType=keyboard
+    MatchBus=usb
+    MatchVendor=0x258A
+    MatchProduct=0x001E
+    AttrKeyboardIntegration=internal
   '';
 
   hardware.enableRedistributableFirmware = true;
   hardware.firmware = [
     pkgs.pinebookpro-firmware
   ];
-
-  # Until suspend is fixed, this at least prevents the user from shooting
-  # themselves in the foot by suspending accidentally, then forced to restart
-  # the system forcibly..
+  
   systemd.tmpfiles.rules = [
+    # Until suspend is fixed, this at least prevents the user from shooting
+    # themselves in the foot by suspending accidentally, then forced to restart
+    # the system forcibly..
     "w /sys/power/mem_sleep - - - -  s2idle"
+
+    # Tweak the minimum frequencies of the GPU and CPU governors to get a bit more performance
+    # https://github.com/elementary/os/blob/05a5a931806d4ed8bc90396e9e91b5ac6155d4d4/build-pinebookpro.sh#L288-L294
+    "w- /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq - - - - 1200000"
+    "w- /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq - - - - 1008000"
+    "w- /sys/class/devfreq/ff9a0000.gpu/min_freq - - - - 600000000"
   ];
 
   # The default powersave makes the wireless connection unusable.
