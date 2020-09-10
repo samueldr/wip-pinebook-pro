@@ -9,6 +9,7 @@
   outputs = { self, nixpkgs, flake-utils }:
     {
       overlay = final: prev: import "${self}/overlay.nix" final prev;
+      nixosModule = import "${self}/pinebook_pro.nix";
     } // flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (
       system:
         let
@@ -50,8 +51,6 @@
                 )
               ];
             };
-
-            nixosModule = import "${self}/pinebook_pro.nix";
           }
     );
 }
