@@ -1,0 +1,22 @@
+configs/pinebook-pro-rk3399_defconfig: Configure usb kbd polling
+
+The default configuration will use SYS_USB_EVENT_POLL for handling the
+usb keyboard and it makes the system really slow (eg slow keypress, 
+loading kernel/initrd from grub-efi is taking ages).
+
+Using CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE seems to be improving
+things a lot, so use it.
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+Index: u-boot/configs/pinebook-pro-rk3399_defconfig
+===================================================================
+--- u-boot.orig/configs/pinebook-pro-rk3399_defconfig
++++ u-boot/configs/pinebook-pro-rk3399_defconfig
+@@ -78,6 +78,7 @@ CONFIG_USB_OHCI_GENERIC=y
+ CONFIG_USB_DWC3=y
+ CONFIG_ROCKCHIP_USB2_PHY=y
+ CONFIG_USB_KEYBOARD=y
++CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE=y
+ CONFIG_USB_HOST_ETHER=y
+ CONFIG_USB_ETHER_ASIX=y
+ CONFIG_USB_ETHER_RTL8152=y

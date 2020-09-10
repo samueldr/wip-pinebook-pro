@@ -178,16 +178,6 @@ As far as the testing done goes, they do not cause any harm to the normal
 operation of the booted system, while being a net upgrade over the previous
 firmware which had no way for the user to select boot options via the device.
 
-### Keyboard input is *wonky*
-
-I do not know how to better describe it. Sometimes the input is immediate,
-sometimes it will take a hot second before it happens. I recommend pressing
-an arrow key once and waiting up to 5 seconds (usually 2) when navigating the
-menu. Otherwise you may overshoot if you are impatient.
-
-It may also be worsened by mixing serial input and keyboard input, but has not
-been conclusively validated.
-
 ### Saving settings to SPI
 
 While there is a patch upstream to do so, it seems to cause issues with USB
