@@ -2,7 +2,7 @@
   description = "WIP stuff to get started on the pinebook pro.";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs-channels/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs-channels/nixos-20.09";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
