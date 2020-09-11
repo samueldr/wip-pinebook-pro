@@ -1,8 +1,8 @@
-From 1d0ac5b866e97ae591096d63fc6f145d127d1255 Mon Sep 17 00:00:00 2001
+From 5ae3afa4547eb82b92d93553ff07892eb8ff1665 Mon Sep 17 00:00:00 2001
 From: Arnaud Patard <arnaud.patard@rtp-net.org>
-Date: Mon, 27 Jul 2020 19:22:31 -0400
-Subject: [PATCH 1/7] drivers/video/rockchip/rk_vop.c: Use endpoint compatible
- string to find VOP mode
+Date: Fri, 11 Sep 2020 16:26:11 -0400
+Subject: [PATCH 01/11] drivers/video/rockchip/rk_vop.c: Use endpoint
+ compatible string to find VOP mode
 
 The current code is using an hard coded enum and the of node reg value of
 endpoint to find out if the endpoint is mipi/hdmi/lvds/edp/dp. The order
@@ -14,16 +14,16 @@ to find the kind of endpoint by comparing the endpoint compatible value.
 
 This patch is implementing the more flexible second solution.
 
-Origin: http://people.hupstream.com/~rtp/pbp/20200727/dts_vop_mode.patch
-
 Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/dts_vop_mode.patch
 ---
  .../include/asm/arch-rockchip/vop_rk3288.h    | 15 +----------
  drivers/video/rockchip/rk_vop.c               | 25 +++++++++++++++++--
  2 files changed, 24 insertions(+), 16 deletions(-)
 
 diff --git a/arch/arm/include/asm/arch-rockchip/vop_rk3288.h b/arch/arm/include/asm/arch-rockchip/vop_rk3288.h
-index 872a158b714..bf19e059977 100644
+index 872a158b71..bf19e05997 100644
 --- a/arch/arm/include/asm/arch-rockchip/vop_rk3288.h
 +++ b/arch/arm/include/asm/arch-rockchip/vop_rk3288.h
 @@ -85,26 +85,13 @@ enum {
@@ -55,7 +55,7 @@ index 872a158b714..bf19e059977 100644
  /* VOP_VERSION_INFO */
  #define M_FPGA_VERSION (0xffff << 16)
 diff --git a/drivers/video/rockchip/rk_vop.c b/drivers/video/rockchip/rk_vop.c
-index 9032eb430e7..6cd4ccc97a0 100644
+index 9032eb430e..6cd4ccc97a 100644
 --- a/drivers/video/rockchip/rk_vop.c
 +++ b/drivers/video/rockchip/rk_vop.c
 @@ -235,12 +235,11 @@ static int rk_display_init(struct udevice *dev, ulong fbbase, ofnode ep_node)
@@ -105,10 +105,10 @@ index 9032eb430e7..6cd4ccc97a0 100644
 2.25.4
 
 
-From 39ea1f49c03ef6eaa4305f8d1bcea46c08d8a1a4 Mon Sep 17 00:00:00 2001
+From 382c53d4970c609a9f787422fbcd5f804ee00c3f Mon Sep 17 00:00:00 2001
 From: Arnaud Patard <arnaud.patard@rtp-net.org>
-Date: Mon, 27 Jul 2020 19:23:24 -0400
-Subject: [PATCH 2/7] drivers/video/rockchip/rk_edp.c: Add rk3399 support
+Date: Fri, 11 Sep 2020 16:26:11 -0400
+Subject: [PATCH 02/11] drivers/video/rockchip/rk_edp.c: Add rk3399 support
 
 According to linux commit "drm/rockchip: analogix_dp: add rk3399 eDP
 support" (82872e42bb1501dd9e60ca430f4bae45a469aa64), rk3288 and rk3399
@@ -120,16 +120,16 @@ The clocks don't seem to be the same, the eDP clock is not at index 1
 on rk3399, so don't try changing the clock at index 1 to rate 0 on
 rk3399.
 
-Origin: http://people.hupstream.com/~rtp/pbp/20200727/rk_edp_rk3399.patch
-
 Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/rk_edp_rk3399.patch
 ---
  .../include/asm/arch-rockchip/edp_rk3288.h    |  5 +-
  drivers/video/rockchip/rk_edp.c               | 85 ++++++++++++++-----
  2 files changed, 68 insertions(+), 22 deletions(-)
 
 diff --git a/arch/arm/include/asm/arch-rockchip/edp_rk3288.h b/arch/arm/include/asm/arch-rockchip/edp_rk3288.h
-index 105a335daba..c861f0eab18 100644
+index 105a335dab..c861f0eab1 100644
 --- a/arch/arm/include/asm/arch-rockchip/edp_rk3288.h
 +++ b/arch/arm/include/asm/arch-rockchip/edp_rk3288.h
 @@ -232,8 +232,9 @@ check_member(rk3288_edp, pll_reg_5, 0xa00);
@@ -145,7 +145,7 @@ index 105a335daba..c861f0eab18 100644
  /* line_map */
  #define LANE3_MAP_LOGIC_LANE_0			(0x0 << 6)
 diff --git a/drivers/video/rockchip/rk_edp.c b/drivers/video/rockchip/rk_edp.c
-index 000bd481408..1b2f5f706d5 100644
+index 000bd48140..1b2f5f706d 100644
 --- a/drivers/video/rockchip/rk_edp.c
 +++ b/drivers/video/rockchip/rk_edp.c
 @@ -17,11 +17,10 @@
@@ -297,23 +297,143 @@ index 000bd481408..1b2f5f706d5 100644
 2.25.4
 
 
-From 3f9f4ba5476972011794e7023dd0f5a2db1abede Mon Sep 17 00:00:00 2001
+From b5776e11f8e7c79ff61bc2b93be9b6253db939f1 Mon Sep 17 00:00:00 2001
 From: Arnaud Patard <arnaud.patard@rtp-net.org>
-Date: Mon, 27 Jul 2020 19:23:27 -0400
-Subject: [PATCH 3/7] rk3399-pinebook-pro-u-boot.dtsi: Enable edp
+Date: Fri, 11 Sep 2020 16:26:12 -0400
+Subject: [PATCH 03/11] drivers/video/rockchip/rk_edp.c: Change interrupt
+ polarity configuration
+
+The linux code is setting polarity configuration to 3 but
+uboot code is setting it to 1. Change the configuration to match the
+linux configuration
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/rk_edp_vs_linux.patch
+---
+ drivers/video/rockchip/rk_edp.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/video/rockchip/rk_edp.c b/drivers/video/rockchip/rk_edp.c
+index 1b2f5f706d..13fa78aced 100644
+--- a/drivers/video/rockchip/rk_edp.c
++++ b/drivers/video/rockchip/rk_edp.c
+@@ -100,10 +100,13 @@ static void rk_edp_init_refclk(struct rk3288_edp *regs, enum rockchip_dp_types c
+ 	       &regs->dp_reserv2);
+ }
+ 
++#define INT_POL1                                (0x1 << 1)
++#define INT_POL0                                (0x1 << 0)
++
+ static void rk_edp_init_interrupt(struct rk3288_edp *regs)
+ {
+ 	/* Set interrupt pin assertion polarity as high */
+-	writel(INT_POL, &regs->int_ctl);
++	writel(INT_POL0 | INT_POL1, &regs->int_ctl);
+ 
+ 	/* Clear pending registers */
+ 	writel(0xff, &regs->common_int_sta_1);
+-- 
+2.25.4
+
+
+From c1f23be1f6e1aa94e6b22e0a403ec061ca311f42 Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Fri, 11 Sep 2020 16:26:12 -0400
+Subject: [PATCH 04/11] drivers/video/rockchip/rk_edp.c: Change clock rate
+
+The current code is setting the clock rate to 192000000, but
+due to the current device-tree configuration and linux code,
+it should rather be 100000000.
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/rk_vop_clk_rate.patch
+---
+ drivers/video/rockchip/rk_edp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/video/rockchip/rk_edp.c b/drivers/video/rockchip/rk_edp.c
+index 13fa78aced..c2dc79faac 100644
+--- a/drivers/video/rockchip/rk_edp.c
++++ b/drivers/video/rockchip/rk_edp.c
+@@ -1078,7 +1078,7 @@ static int rk_edp_probe(struct udevice *dev)
+ 	}
+ 	ret = clk_get_by_index(uc_plat->src_dev, 0, &clk);
+ 	if (ret >= 0) {
+-		ret = clk_set_rate(&clk, 192000000);
++		ret = clk_set_rate(&clk, 100000000);
+ 		clk_free(&clk);
+ 	}
+ 	if (ret < 0) {
+-- 
+2.25.4
+
+
+From 8ecab272ff922477da225f1856cb4bc492d41fb2 Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Fri, 11 Sep 2020 16:26:12 -0400
+Subject: [PATCH 05/11] drivers/video/rockchip/rk_vop.c: Reserve efi fb memory
+
+When booting with EFI and graphics, the memory used for framebuffer
+has to be reserved, otherwise it may leads to kernel memory
+overwrite.
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/rk_vop_reserve_fb_memory.patch
+---
+ drivers/video/rockchip/rk_vop.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/drivers/video/rockchip/rk_vop.c b/drivers/video/rockchip/rk_vop.c
+index 6cd4ccc97a..98d33a3cec 100644
+--- a/drivers/video/rockchip/rk_vop.c
++++ b/drivers/video/rockchip/rk_vop.c
+@@ -20,6 +20,8 @@
+ #include <asm/arch-rockchip/vop_rk3288.h>
+ #include <dm/device-internal.h>
+ #include <dm/uclass-internal.h>
++#include <efi.h>
++#include <efi_loader.h>
+ #include <linux/bitops.h>
+ #include <linux/err.h>
+ #include <power/regulator.h>
+@@ -394,6 +396,13 @@ int rk_vop_probe(struct udevice *dev)
+ 	if (!(gd->flags & GD_FLG_RELOC))
+ 		return 0;
+ 
++	plat->base = gd->bd->bi_dram[0].start + gd->bd->bi_dram[0].size - plat->size;
++
++#if defined(CONFIG_EFI_LOADER)
++	debug("Adding to EFI map %d @ %lx\n", plat->size, plat->base);
++	efi_add_memory_map(plat->base, plat->size, EFI_RESERVED_MEMORY_TYPE);
++#endif
++
+ 	priv->regs = (struct rk3288_vop *)dev_read_addr(dev);
+ 
+ 	/*
+-- 
+2.25.4
+
+
+From 68098155f59cf102add0817d65a3570513500092 Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Fri, 11 Sep 2020 16:26:12 -0400
+Subject: [PATCH 06/11] rk3399-pinebook-pro-u-boot.dtsi: Enable edp
 
 - uboot rockchip edp code is looking for a rockchip,panel property
   for the edp dts node, so add it.
 
-Origin: http://people.hupstream.com/~rtp/pbp/20200727/update_pinebook_pro_uboot_dtsi.patch
-
 Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/update_pinebook_pro_uboot_dtsi.patch
 ---
  arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi | 4 ++++
  1 file changed, 4 insertions(+)
 
 diff --git a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
-index 1a2e24d3ef5..f0b58909a4b 100644
+index 1a2e24d3ef..f0b58909a4 100644
 --- a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
 +++ b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
 @@ -41,3 +41,7 @@
@@ -328,10 +448,84 @@ index 1a2e24d3ef5..f0b58909a4b 100644
 2.25.4
 
 
-From 9ae9e65232c4f810567bced0f04111dbadfad287 Mon Sep 17 00:00:00 2001
+From cc514ca0d224b80713b0a653094f498c520bd1b3 Mon Sep 17 00:00:00 2001
 From: Arnaud Patard <arnaud.patard@rtp-net.org>
-Date: Mon, 27 Jul 2020 19:23:30 -0400
-Subject: [PATCH 4/7] PBP: Fix panel reset
+Date: Fri, 11 Sep 2020 16:26:13 -0400
+Subject: [PATCH 07/11] configs/pinebook-pro-rk3399_defconfig: enable
+ SYS_USB_EVENT_POLL_VIA_INT_QUEUE
+
+The default configuration will use SYS_USB_EVENT_POLL for handling the
+usb keyboard and it makes the system really slow (eg slow keypress,
+loading kernel/initrd from grub-efi is taking ages).
+
+Using CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE seems to be improving
+things a lot, so use it.
+
+Tested-by: Samuel Dionne-Riel <samuel@dionne-riel.com>
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/pbp_defconfig_usb_poll.patch
+---
+ configs/pinebook-pro-rk3399_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configs/pinebook-pro-rk3399_defconfig b/configs/pinebook-pro-rk3399_defconfig
+index 0c129b9aeb..fa53bef6b9 100644
+--- a/configs/pinebook-pro-rk3399_defconfig
++++ b/configs/pinebook-pro-rk3399_defconfig
+@@ -69,6 +69,7 @@ CONFIG_USB_EHCI_GENERIC=y
+ CONFIG_USB_DWC3=y
+ CONFIG_ROCKCHIP_USB2_PHY=y
+ CONFIG_USB_KEYBOARD=y
++CONFIG_SYS_USB_EVENT_POLL_VIA_INT_QUEUE=y
+ CONFIG_USB_HOST_ETHER=y
+ CONFIG_USB_ETHER_ASIX=y
+ CONFIG_USB_ETHER_RTL8152=y
+-- 
+2.25.4
+
+
+From f3cae111f1daf8ef6a085cc435d37f741141675a Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Fri, 11 Sep 2020 16:26:13 -0400
+Subject: [PATCH 08/11] drivers/pwm/rk_pwm.c: Fix default polarity
+
+In the code, the default polarity is set to positive/positive,
+which is neither normal polarity or inverted polarity. It's
+only the hardware default. This leads to booting linux with
+wrong polarity setting.
+
+Update the code to use PWM_DUTY_POSTIVE | PWM_INACTIVE_NEGATIVE
+by default instead.
+
+Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
+
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/pwm-fix-default-polarity.patch
+---
+ drivers/pwm/rk_pwm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pwm/rk_pwm.c b/drivers/pwm/rk_pwm.c
+index 911da1d426..c743feb920 100644
+--- a/drivers/pwm/rk_pwm.c
++++ b/drivers/pwm/rk_pwm.c
+@@ -146,7 +146,7 @@ static int rk_pwm_probe(struct udevice *dev)
+ 	priv->data = (struct rockchip_pwm_data *)dev_get_driver_data(dev);
+ 
+ 	if (priv->data->supports_polarity)
+-		priv->conf_polarity = PWM_DUTY_POSTIVE | PWM_INACTIVE_POSTIVE;
++		priv->conf_polarity = PWM_DUTY_POSTIVE | PWM_INACTIVE_NEGATIVE;
+ 
+ 	return 0;
+ }
+-- 
+2.25.4
+
+
+From 60046c90d749e29348ee140583b0646e63c838be Mon Sep 17 00:00:00 2001
+From: Arnaud Patard <arnaud.patard@rtp-net.org>
+Date: Fri, 11 Sep 2020 16:26:13 -0400
+Subject: [PATCH 09/11] [HACK NOTFORMERGE] PBP: Fix panel reset
 
 On warm reset, the pinebook pro panel is not working correctly.
 The issue is not yet debugged so, for now, this hack seems to be
@@ -341,13 +535,13 @@ schematics ] used by the vcc3v3_panel regulator.
 There's no gpio_request, since the gpio is already in use at this
 stage, so it can only fail.
 
-Origin: http://people.hupstream.com/~rtp/pbp/20200727/hack-reset.patch
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/hack-reset.patch
 ---
  board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c | 9 +++++++++
  1 file changed, 9 insertions(+)
 
 diff --git a/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c b/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c
-index 516292aaa59..6b8376d6cd9 100644
+index 516292aaa5..6b8376d6cd 100644
 --- a/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c
 +++ b/board/pine64/pinebook-pro-rk3399/pinebook-pro-rk3399.c
 @@ -7,9 +7,12 @@
@@ -387,29 +581,22 @@ index 516292aaa59..6b8376d6cd9 100644
 2.25.4
 
 
-From 3a46df81e1b59695e44cae08004ce77b70fbdd46 Mon Sep 17 00:00:00 2001
+From 5e8bdb80f959e8fab2821191ec7f2868871a9798 Mon Sep 17 00:00:00 2001
 From: Arnaud Patard <arnaud.patard@rtp-net.org>
-Date: Mon, 27 Jul 2020 19:23:42 -0400
-Subject: [PATCH 5/7] SPL malloc() before relocation used 0x22d0 bytes (8 KB)
+Date: Fri, 11 Sep 2020 16:26:13 -0400
+Subject: [PATCH 10/11] SPL malloc() before relocation used 0x22d0 bytes (8 KB)
+ >>TPL: board_init_r() spl_init Trying to boot from BOOTROM Returning to boot
+ ROM... spl_early_init pmic@1b: ret=-6 i2c@ff3c0000: ret=-6 dm_scan_fdt()
+ failed: -6 dm_extended_scan_dt() failed: -6 dm_init_and_scan() returned error
+ -6 spl_early_init() failed: -6 ### ERROR ### Please RESET the board ###
 
-spl_init
-Trying to boot from BOOTROM
-Returning to boot ROM...
-spl_early_init
-pmic@1b: ret=-6
-i2c@ff3c0000: ret=-6
-dm_scan_fdt() failed: -6
-dm_extended_scan_dt() failed: -6
-dm_init_and_scan() returned error -6
-spl_early_init() failed: -6
-
-Origin: http://people.hupstream.com/~rtp/pbp/20200727/pmic-dm-reloc.patch
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/pmic-dm-reloc.patch
 ---
  arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
-index f0b58909a4b..0f8879c4ca3 100644
+index f0b58909a4..0f8879c4ca 100644
 --- a/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
 +++ b/arch/arm/dts/rk3399-pinebook-pro-u-boot.dtsi
 @@ -20,9 +20,9 @@
@@ -428,18 +615,18 @@ index f0b58909a4b..0f8879c4ca3 100644
 2.25.4
 
 
-From 51533b5a9b9963c05c2ddd21aee99b08adb8b48a Mon Sep 17 00:00:00 2001
+From 771c6108e693223e82d2672a18a81d8468c2d0f4 Mon Sep 17 00:00:00 2001
 From: Arnaud Patard <arnaud.patard@rtp-net.org>
-Date: Mon, 27 Jul 2020 19:23:49 -0400
-Subject: [PATCH 6/7] rk3399-pinebook-pro-u-boot.dts: "disable_cdp_dp.patch"
+Date: Fri, 11 Sep 2020 16:26:14 -0400
+Subject: [PATCH 11/11] (patch file disable_cdp_dp.patch)
 
-Origin: http://people.hupstream.com/~rtp/pbp/20200727/disable_cdp_dp.patch
+Origin: http://people.hupstream.com/~rtp/pbp/20200911/disable_cdp_dp.patch
 ---
  arch/arm/dts/rk3399-pinebook-pro.dts | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/arch/arm/dts/rk3399-pinebook-pro.dts b/arch/arm/dts/rk3399-pinebook-pro.dts
-index 294d21bf45f..4e2dd140841 100644
+index 294d21bf45..4e2dd14084 100644
 --- a/arch/arm/dts/rk3399-pinebook-pro.dts
 +++ b/arch/arm/dts/rk3399-pinebook-pro.dts
 @@ -372,9 +372,9 @@
@@ -454,53 +641,6 @@ index 294d21bf45f..4e2dd140841 100644
  
  &cpu_b0 {
  	cpu-supply = <&vdd_cpu_b>;
--- 
-2.25.4
-
-
-From cf24efba24a7aae0596be03487f77fe25238381e Mon Sep 17 00:00:00 2001
-From: Arnaud Patard <arnaud.patard@rtp-net.org>
-Date: Mon, 27 Jul 2020 19:23:52 -0400
-Subject: [PATCH 7/7] drivers/video/rockchip/rk_vop.c: Reserve efi fb memory
-
-When booting with EFI and graphics, the memory used for framebuffer
-has to be reserved, otherwise it may leads to kernel memory
-overwrite.
-
-Origin: http://people.hupstream.com/~rtp/pbp/20200727/rk_vop_reserve_fb_memory.patch
-
-Signed-off-by: Arnaud Patard <arnaud.patard@rtp-net.org>
----
- drivers/video/rockchip/rk_vop.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
-
-diff --git a/drivers/video/rockchip/rk_vop.c b/drivers/video/rockchip/rk_vop.c
-index 6cd4ccc97a0..fe5ff977d7e 100644
---- a/drivers/video/rockchip/rk_vop.c
-+++ b/drivers/video/rockchip/rk_vop.c
-@@ -20,6 +20,8 @@
- #include <asm/arch-rockchip/vop_rk3288.h>
- #include <dm/device-internal.h>
- #include <dm/uclass-internal.h>
-+#include <efi.h>
-+#include <efi_loader.h>
- #include <linux/bitops.h>
- #include <linux/err.h>
- #include <power/regulator.h>
-@@ -394,6 +396,13 @@ int rk_vop_probe(struct udevice *dev)
- 	if (!(gd->flags & GD_FLG_RELOC))
- 		return 0;
- 
-+	plat->base = gd->bd->bi_dram[0].start + gd->bd->bi_dram[0].size - plat->size;
-+
-+#ifdef CONFIG_EFI_LOADER
-+	debug("Adding to EFI map %d @ %lx\n", plat->size, plat->base);
-+        efi_add_memory_map(plat->base, plat->size, EFI_RESERVED_MEMORY_TYPE);
-+#endif
-+
- 	priv->regs = (struct rk3288_vop *)dev_read_addr(dev);
- 
- 	/*
 -- 
 2.25.4
 

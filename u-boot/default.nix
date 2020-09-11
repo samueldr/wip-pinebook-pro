@@ -17,7 +17,7 @@ let
   };
 
   # The version number for our opinionated firmware.
-  firmwareVersion = "003";
+  firmwareVersion = "004";
 
   logo = runCommandNoCC "pbp-logo" {} ''
     mkdir -p $out
@@ -68,7 +68,6 @@ in
     # I have been authorised to distribute.
     #
     ./0001-display-support.patch
-    ./0006-configure-usb-kbd-polling.patch
 
     # Dhivael patchset
     # ----------------
