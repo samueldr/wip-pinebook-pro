@@ -1,17 +1,5 @@
-{
-  pkgs ? import <nixpkgs> {
-    overlays = [
-      (import ./overlay.nix)
-    ];
+(
+  import (fetchTarball https://github.com/edolstra/flake-compat/archive/master.tar.gz) {
+    src = ./.;
   }
-}:
-
-let
-  pkgs' = if builtins.currentSystem == "aarch64-linux"
-    then pkgs
-    else pkgs.pkgsCross.aarch64-multiplatform
-  ;
-in
-{
-  pkgs = pkgs';
-}
+).defaultNix

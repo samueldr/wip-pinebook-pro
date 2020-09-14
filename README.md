@@ -39,12 +39,9 @@ The backlight can be controlled using `light` (`programs.light.enable`).
 ## Image build
 
 ```
-$ ./build.sh
+$ nix build
 $ lsblk /dev/mmcblk0 && sudo dd if=$(echo result/sd-image/*.img) of=/dev/mmcblk0 bs=8M oflag=direct status=progress
 ```
-
-The `build.sh` script transmits parameters to `nix-build`, so e.g. `-j0` can
-be used.
 
 Once built, this image is self-sufficient, meaning that it should already be
 booting, no need burn u-boot to it.
