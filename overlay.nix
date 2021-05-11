@@ -21,6 +21,6 @@ in
   linux_pinebookpro_lts = callPackage ./kernel/lts { kernelPatches = []; };
   linuxPackages_pinebookpro_lts = linuxPackagesFor final.linux_pinebookpro_lts;
 
-  pinebookpro-firmware = callPackage ./firmware {};
+  pinebookpro-ap6256-firmware = callPackage ./firmware/ap6256-firmware.nix {};
   pinebookpro-keyboard-updater = callPackage ./keyboard-updater {};
 }
