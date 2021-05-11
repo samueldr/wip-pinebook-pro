@@ -1,71 +1,76 @@
-{ stdenv
-, pkgs
-, lib
-, kernelPatches
-, buildPackages
-, fetchFromGitLab
-, perl
-, buildLinux
-, modDirVersionArg ? null
-, ... } @ args:
+# By design this is not "pinning" to any particular kernel version.
+# This means that, by design, it may start failing once the patches don't apply.
+# But, by design, this will track the kernel upgrades in Nixpkgs.
+{ pkgs, lib, linux_latest, kernelPatches, fetchpatch, ... } @ args:
 
 let
-  inherit (stdenv.lib)
-    concatStrings
-    intersperse
-    take
-    splitString
-    optionalString
-  ;
-  version = "5.7";
-  additionalConfig = {
-    name = "pinebookpro-config-fixes";
-    patch = null;
-    extraConfig = ''
-      PCIE_ROCKCHIP y
-      PCIE_ROCKCHIP_HOST y
-      PCIE_DW_PLAT y
-      PCIE_DW_PLAT_HOST y
-      PHY_ROCKCHIP_PCIE y
-      PHY_ROCKCHIP_INNO_HDMI y
-      PHY_ROCKCHIP_DP y
-      ROCKCHIP_MBOX y
-      STAGING_MEDIA y
-      VIDEO_HANTRO y
-      VIDEO_HANTRO_ROCKCHIP y
-      USB_DWC2_PCI y
-      ROCKCHIP_LVDS y
-      ROCKCHIP_RGB y
-    '';
+  nhp = patch: sha256: let rev = "ded66e50064c55a56a958558ab35bc6bae444e72"; in {
+    name = patch;
+    patch = (fetchpatch {
+      url = "https://raw.githubusercontent.com/nadiaholmquist/pbp-packages/${rev}/linux-pbp/${patch}";
+      inherit sha256;
+    });
   };
 in
-
-buildLinux (args // {
-  inherit version;
-
+linux_latest.override({
   kernelPatches = lib.lists.unique (kernelPatches ++ [
     pkgs.kernelPatches.bridge_stp_helper
     pkgs.kernelPatches.request_key_helper
-    pkgs.kernelPatches.export_kernel_fpu_functions."5.3"
-    additionalConfig
+
+    # Kernel configuration
+    {
+      # None of these *need* to be set to `y`.
+      # But eh, it works too
+      name = "pinebookpro-config";
+      patch = null;
+      extraConfig = ''
+        PCIE_ROCKCHIP y
+        PCIE_ROCKCHIP_HOST y
+        PCIE_DW_PLAT y
+        PCIE_DW_PLAT_HOST y
+        PHY_ROCKCHIP_PCIE y
+        PHY_ROCKCHIP_INNO_HDMI y
+        PHY_ROCKCHIP_DP y
+        ROCKCHIP_MBOX y
+        USB_DWC2_PCI y
+        ROCKCHIP_LVDS y
+        ROCKCHIP_RGB y
+      '';
+    }
+    {
+      name = "video-hantro-config";
+      patch = null;
+      extraConfig = ''
+        STAGING_MEDIA y
+        VIDEO_HANTRO m
+        VIDEO_HANTRO_ROCKCHIP y
+      '';
+    }
+    {
+      # When efifb is used, rockchipdrm won't render the VT.
+      name = "rk3399-efifb-config";
+      patch = null;
+      extraConfig = ''
+        FB_EFI n
+      '';
+    }
+
+    # Misc. community patches
+    # None are *required* for basic function.
+    # https://github.com/nadiaholmquist/pbp-packages/tree/master/linux-pbp
+    (nhp "0007-mmc-core-pwrseq_simple-disable-mmc-power-on-shutdown.patch"         "1d16gjgds670dzpkb8jjlymcpp1inab3mlzbpfdinrgvfy4pywhi")
+    (nhp "0011-typec-displayport-some-devices-have-pin-assignments-reversed.patch" "02dbkjkr4x407cysr9b0ps34izhq7p3gk9q7rz5abmazgcz62y4g")
+    (nhp "0012-usb-typec-tcpm-Add-generic-extcon-for-tcpm-enabled-devices.patch"   "1icfy8vmwm0f825bgndhmdiskrryzpsbnrfhgvpbxwjrvwmkvlar")
+    (nhp "0013-usb-typec-tcpm-Add-generic-extcon-to-tcpm.patch"                    "0qiyf42g9jd8inb85gkj6bacbid88wb3hbn3144ja3xfss1l04cw")
+    (nhp "0014-arm64-rockchip-add-DP-ALT-rockpro64.patch"                          "03k13jgcnz7wmks1y1fgzpjj2yvi114cbvprmnkyf8xrjns7x5q0")
+    (nhp "0015-ayufan-drm-rockchip-add-support-for-modeline-32MHz-e.patch"         "0z51whv0bjj45l5z3q4v0rqdvz62dh4qg8ccd87la9ga8y1v14cy")
+    (nhp "0021-usb-typec-bus-Catch-crash-due-to-partner-NULL-value.patch"          "0a4zd7ihd9pj6djgcj4ayaw7ff0xs9wqgmcvhwchwy766js3l5rp")
+    (nhp "0022-phy-rockchip-typec-Set-extcon-capabilities.patch"                   "0pqq856g0yndxvg9ipbx1jv6j4ldvapgzvxzvpirygc7f0wdrz49")
+    (nhp "0023-usb-typec-altmodes-displayport-Add-hacky-generic-altmode.patch"     "1vldwg3zwrx2ppqgbhc91l48nfmjkmwwdsyq6mq6f3l1cwfdn62q")
+    (nhp "0024-arm64-dts-rockchip-setup-USB-type-c-port-as-dual-dat.patch"         "0zwwyhryghafga36mgnazn6gk88m2rvs8ng5ykk4hhg9pi5bgzh9")
+    (nhp "0026-arm64-dts-rockchip-add-typec-extcon-hack.patch"                     "1kri47nkm6qgsqgkxzgy6iwhpajcx9xwd4rf8dldr6prb9f6iv3p")
+    (nhp "pbp-2d-fix.patch"                                                        "1hwd6clk1qnjyd4jl7kjn9pnilijz4brh1p5dnv8jzr2ajx2346j")
   ]);
-
-  # modDirVersion needs to be x.y.z, will automatically add .0 if needed
-  modDirVersion = if (modDirVersionArg == null) then concatStrings (intersperse "." (take 3 (splitString "." "${version}.0"))) else modDirVersionArg;
-
-  # branchVersion needs to be x.y
-  extraMeta.branch = concatStrings (intersperse "." (take 2 (splitString "." version)));
-
-  src = fetchFromGitLab {
-    domain = "gitlab.manjaro.org";
-    owner = "tsys";
-    repo = "linux-pinebook-pro";
-    rev = "a8f4db8a726e5e4552e61333dcd9ea1ff35f39f9";
-    sha256 = "1vbach0y28c29hjjx4sc9hda4jxyqfhv4wlip3ky93vf4gxm2fij";
-  };
-
-  postInstall = (optionalString (args ? postInstall) args.postInstall) + ''
-    mkdir -p "$out/nix-support"
-    cp -v "$buildRoot/.config" "$out/nix-support/build.config"
-  '';
-} // (args.argsOverride or {}))
+})
+//
+(args.argsOverride or {})
