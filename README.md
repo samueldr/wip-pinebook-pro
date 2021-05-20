@@ -15,46 +15,51 @@ Clone this repository somwhere, and in your configuration.nix
 That entry point will try to stay unopinionated, while maximizing the hardware
 compatibility.
 
-## Compatibility
 
-### Tested
+## Current state
 
- * X11 with modesetting
- * Wi-Fi
- * Brightness controls
- * Speaker output
+*A whole lot of untested*.
 
-### Untested
+You can look at the previous state to see that the basic stuff works. But I
+find listing everything as working is hard.
 
- * Bluetooth
+What's untested and not working will be listed here at some point. Maybe.
 
 ### Known issues
 
- * Suspend (or resume) fails.
+#### `rockchipdrm` and `efifb`
 
-### Tips
+`CONFIG_FB_EFI` has been disabled in the customized kernel as `rockchipdrm`
+will not render the VT if `efifb` is present.
 
-The backlight can be controlled using `light` (`programs.light.enable`).
+Be careful if using the mainline kernel instead, as it will have
+`CONFIG_FB_EFI` set to `y`.
+
+#### *EFI* and poweroff
+
+When booted using EFI, the system will not power off. It will stay seemingly
+stuck with the LED and display turned off.
+
+Power it off by holding the power button for a while (10-15 seconds).
+
+Otherwise you might have a surprise and find the battery is flat!
+
 
 ## Image build
 
+> **NOTE**: These images will be built without an *Initial Boot Firmware*.
+
+### SD image
+
 ```
-$ ./build.sh
-$ lsblk /dev/mmcblk0 && sudo dd if=$(echo result/sd-image/*.img) of=/dev/mmcblk0 bs=8M oflag=direct status=progress
+ $ nix-build -A sdImage
 ```
 
-The `build.sh` script transmits parameters to `nix-build`, so e.g. `-j0` can
-be used.
+### ISO image
 
-Once built, this image is self-sufficient, meaning that it should already be
-booting, no need burn u-boot to it.
-
-The required modules (and maybe a bit more) are present in stage-1 so the
-display should start early enough in the boot process.
-
-The LED should start up with the amber colour ASAP with this u-boot
-configuration, as a way to show activity early. The kernel should set it to
-green as soon as it can.
+```
+ $ nix-build -A isoImage
+```
 
 ## Note about cross-compilation
 
@@ -64,41 +69,42 @@ When cross-compiled, all caveats apply. Here this mainly means that the kernel
 will need to be re-compiled on the device on the first nixos-rebuild switch,
 while most other packages can be fetched from the cache.
 
-## `u-boot`
-
-Assuming `/dev/mmcblk0` is an SD card.
-
-```
-$ nix-build -A pkgs.uBootPinebookPro
-$ lsblk /dev/mmcblk0 && sudo dd if=result/idbloader.img of=/dev/mmcblk0 bs=512 seek=64 oflag=direct,sync && sudo dd if=result/u-boot.itb of=/dev/mmcblk0 bs=512 seek=16384 oflag=direct,sync
-```
-
-The eMMC has to be zeroed (in the relevant sectors) or else the RK3399 will use
-the eMMC as a boot device first.
-
-Alternatively, this u-boot can be installed to the eMMC.
-
-Installing to SPI has yet to be investigated.
-
-### Updating eMMC u-boot from NixOS
-
-**Caution:** this could render your system unbootable. Do this when you are in
-a situation where you can debug and fix the system if this happens. With this
-said, it should be safe enough.
+For cross-compilation, you might have to provide a path to a known-good Nixpkgs
+checkout. *(Left as an exercis to the reader.)*
 
 ```
-$ nix-build -A pkgs.uBootPinebookPro
-$ lsblk /dev/disk/by-path/platform-fe330000.sdhci && sudo dd if=result/idbloader.img of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=64 oflag=direct,sync && sudo dd if=result/u-boot.itb of=/dev/disk/by-path/platform-fe330000.sdhci bs=512 seek=16384 oflag=direct,sync
+ $ NIX_PATH=nixpkgs=/path/to/known/working/cross-compilation-friendly/nixpkgs
 ```
 
-### Alternative boot order
+## *Initial Boot Firmware*
 
-If you rather USB and SD card is tried before the eMMC, `pkgs.uBootPinebookProExternalFirst`
-can be installed, which has an alternative patch set added on top that will
-change the boot order.
+> **NOTE**: The previously available customized *U-Boot* from this repository
+> are not available anymore.
 
-The SD image is built using the "alternative boot order" u-boot. Thus, flashing
-the image to your eMMC keeps external devices bootable.
+### *Tow-Boot*
+
+I highly suggest installing *Tow-Boot* to the SPI Flash.
+
+ - https://github.com/Tow-Boot/Tow-Boot
+
+Having the firmware installed to SPI makes the device act basically like a
+normal computer. No need for weird incantations to setup the initial boot
+firmware.
+
+Alternatively, starting from the *Tow-Boot* disk image on eMMC is easier to
+deal with and understand than having to deal with *U-Boot* manually.
+
+
+### Mainline *U-Boot*
+
+Mainline U-Boot has full support for graphics since 2021.04. The current
+unstable relases of Nixpkgs are at 2021.04 at least.
+
+```
+ $ nix-build -A pkgs.ubootPinebookPro
+```
+
+Note that the default U-Boot build does not do anything with LED on startup.
 
 
 ## Keyboard firmware

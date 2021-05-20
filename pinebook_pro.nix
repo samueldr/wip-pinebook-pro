@@ -73,15 +73,10 @@
 
   hardware.enableRedistributableFirmware = true;
   hardware.firmware = [
-    pkgs.pinebookpro-firmware
+    pkgs.pinebookpro-ap6256-firmware
   ];
   
   systemd.tmpfiles.rules = [
-    # Until suspend is fixed, this at least prevents the user from shooting
-    # themselves in the foot by suspending accidentally, then forced to restart
-    # the system forcibly..
-    "w /sys/power/mem_sleep - - - -  s2idle"
-
     # Tweak the minimum frequencies of the GPU and CPU governors to get a bit more performance
     # https://github.com/elementary/os/blob/05a5a931806d4ed8bc90396e9e91b5ac6155d4d4/build-pinebookpro.sh#L288-L294
     "w- /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq - - - - 1200000"
