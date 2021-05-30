@@ -29,11 +29,11 @@ What's untested and not working will be listed here at some point. Maybe.
 
 #### `rockchipdrm` and `efifb`
 
-`CONFIG_FB_EFI` has been disabled in the customized kernel as `rockchipdrm`
-will not render the VT if `efifb` is present.
+This can be worked around by booting with the `efifb=off` kernel command-line.
 
-Be careful if using the mainline kernel instead, as it will have
-`CONFIG_FB_EFI` set to `y`.
+This is already handled for you by this configuration. If using the generic
+UEFI AArch64 iso, you will need to add the option yourself to the command-line
+using GRUB.
 
 #### *EFI* and poweroff
 

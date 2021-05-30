@@ -41,6 +41,11 @@
     "rtc_rk808"
   ];
 
+  boot.kernelParams = [
+    # Works around an issue with efifb, U-Boot and RK3399
+    "efifb=off"
+  ];
+
   services.udev.extraHwdb = lib.concatStrings [
     # https://gitlab.manjaro.org/manjaro-arm/packages/community/pinebookpro-post-install/blob/master/10-usb-kbd.hwdb
     ''

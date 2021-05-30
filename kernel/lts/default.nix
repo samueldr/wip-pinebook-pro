@@ -46,14 +46,6 @@ linux_5_10.override({
         VIDEO_HANTRO_ROCKCHIP y
       '';
     }
-    {
-      # When efifb is used, rockchipdrm won't render the VT.
-      name = "rk3399-efifb-config";
-      patch = null;
-      extraConfig = ''
-        FB_EFI n
-      '';
-    }
 
     # Misc. community patches
     # None are *required* for basic function.
