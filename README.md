@@ -112,6 +112,13 @@ Note that the default U-Boot build does not do anything with LED on startup.
 
 ## Keyboard firmware
 
+> **WARNING**: Some hardware batches for the Pinebook Pro ship with the
+> wrong chip for the keyboard controller. While it will work with the
+> firmware it ships with, it *may brick* while flashing the updated
+> firmware. [See this comment on the firmware repository](https://github.com/jackhumbert/pinebook-pro-keyboard-updater/issues/33#issuecomment-850889285).
+>
+> It is unclear how to identify said hardware from a running system.
+
 ```
  $ nix-build -A pkgs.pinebookpro-keyboard-updater
  $ sudo ./result/bin/updater step-1 <iso|ansi>
