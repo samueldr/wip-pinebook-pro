@@ -62,6 +62,15 @@ linux_5_10.override({
     (nhp "0024-arm64-dts-rockchip-setup-USB-type-c-port-as-dual-dat.patch"         "0zwwyhryghafga36mgnazn6gk88m2rvs8ng5ykk4hhg9pi5bgzh9")
     (nhp "0026-arm64-dts-rockchip-add-typec-extcon-hack.patch"                     "1kri47nkm6qgsqgkxzgy6iwhpajcx9xwd4rf8dldr6prb9f6iv3p")
     (nhp "pbp-2d-fix.patch"                                                        "1hwd6clk1qnjyd4jl7kjn9pnilijz4brh1p5dnv8jzr2ajx2346j")
+
+    rec {
+      name = "cw2015_battery-charge-now.patch";
+      patch = fetchpatch {
+        inherit name;
+        url = "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/patch?id=bf3841073bf34c9568ee5d6a6020b3902b3eef81";
+        sha256 = "sha256-S7g5whBc7GH7dGFMbfD0ye6U5+sdN+PUUHvPlZd3xPw=";
+      };
+    }
   ]);
 })
 //
