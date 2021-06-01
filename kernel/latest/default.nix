@@ -4,7 +4,7 @@
 { pkgs, lib, linux_latest, kernelPatches, fetchpatch, ... } @ args:
 
 let
-  nhp = patch: sha256: let rev = "ded66e50064c55a56a958558ab35bc6bae444e72"; in {
+  nhp = patch: sha256: let rev = "dc1ddf068c11edc5149e2c36f27d5d1dd5381426"; in {
     name = patch;
     patch = (fetchpatch {
       url = "https://raw.githubusercontent.com/nadiaholmquist/pbp-packages/${rev}/linux-pbp/${patch}";
@@ -53,7 +53,7 @@ linux_latest.override({
     (nhp "0007-mmc-core-pwrseq_simple-disable-mmc-power-on-shutdown.patch"         "1d16gjgds670dzpkb8jjlymcpp1inab3mlzbpfdinrgvfy4pywhi")
     (nhp "0011-typec-displayport-some-devices-have-pin-assignments-reversed.patch" "02dbkjkr4x407cysr9b0ps34izhq7p3gk9q7rz5abmazgcz62y4g")
     (nhp "0012-usb-typec-tcpm-Add-generic-extcon-for-tcpm-enabled-devices.patch"   "1icfy8vmwm0f825bgndhmdiskrryzpsbnrfhgvpbxwjrvwmkvlar")
-    (nhp "0013-usb-typec-tcpm-Add-generic-extcon-to-tcpm.patch"                    "0qiyf42g9jd8inb85gkj6bacbid88wb3hbn3144ja3xfss1l04cw")
+    (nhp "0013-usb-typec-tcpm-Add-generic-extcon-to-tcpm.patch"                    "0qr1jv7gbdbvhxwc0lb7lfq9rvwggn0jqqcfy05y9i01nli6mxxm")
     (nhp "0014-arm64-rockchip-add-DP-ALT-rockpro64.patch"                          "03k13jgcnz7wmks1y1fgzpjj2yvi114cbvprmnkyf8xrjns7x5q0")
     (nhp "0015-ayufan-drm-rockchip-add-support-for-modeline-32MHz-e.patch"         "0z51whv0bjj45l5z3q4v0rqdvz62dh4qg8ccd87la9ga8y1v14cy")
     (nhp "0021-usb-typec-bus-Catch-crash-due-to-partner-NULL-value.patch"          "0a4zd7ihd9pj6djgcj4ayaw7ff0xs9wqgmcvhwchwy766js3l5rp")
