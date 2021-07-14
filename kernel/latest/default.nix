@@ -4,10 +4,10 @@
 { pkgs, lib, linux_latest, kernelPatches, fetchpatch, ... } @ args:
 
 let
-  nhp = patch: sha256: let rev = "dc1ddf068c11edc5149e2c36f27d5d1dd5381426"; in {
+  manjaroArmPatch = patch: sha256: let rev = "551a0d0c4f8e2dce4e565187fae97ec437d6aef4"; in {
     name = patch;
     patch = (fetchpatch {
-      url = "https://raw.githubusercontent.com/nadiaholmquist/pbp-packages/${rev}/linux-pbp/${patch}";
+      url = "https://gitlab.manjaro.org/manjaro-arm/packages/core/linux/-/raw/${rev}/${patch}";
       inherit sha256;
     });
   };
@@ -49,19 +49,17 @@ linux_latest.override({
 
     # Misc. community patches
     # None are *required* for basic function.
-    # https://github.com/nadiaholmquist/pbp-packages/tree/master/linux-pbp
-    (nhp "0007-mmc-core-pwrseq_simple-disable-mmc-power-on-shutdown.patch"         "1d16gjgds670dzpkb8jjlymcpp1inab3mlzbpfdinrgvfy4pywhi")
-    (nhp "0011-typec-displayport-some-devices-have-pin-assignments-reversed.patch" "02dbkjkr4x407cysr9b0ps34izhq7p3gk9q7rz5abmazgcz62y4g")
-    (nhp "0012-usb-typec-tcpm-Add-generic-extcon-for-tcpm-enabled-devices.patch"   "1icfy8vmwm0f825bgndhmdiskrryzpsbnrfhgvpbxwjrvwmkvlar")
-    (nhp "0013-usb-typec-tcpm-Add-generic-extcon-to-tcpm.patch"                    "0qr1jv7gbdbvhxwc0lb7lfq9rvwggn0jqqcfy05y9i01nli6mxxm")
-    (nhp "0014-arm64-rockchip-add-DP-ALT-rockpro64.patch"                          "03k13jgcnz7wmks1y1fgzpjj2yvi114cbvprmnkyf8xrjns7x5q0")
-    (nhp "0015-ayufan-drm-rockchip-add-support-for-modeline-32MHz-e.patch"         "0z51whv0bjj45l5z3q4v0rqdvz62dh4qg8ccd87la9ga8y1v14cy")
-    (nhp "0021-usb-typec-bus-Catch-crash-due-to-partner-NULL-value.patch"          "0a4zd7ihd9pj6djgcj4ayaw7ff0xs9wqgmcvhwchwy766js3l5rp")
-    (nhp "0022-phy-rockchip-typec-Set-extcon-capabilities.patch"                   "0pqq856g0yndxvg9ipbx1jv6j4ldvapgzvxzvpirygc7f0wdrz49")
-    (nhp "0023-usb-typec-altmodes-displayport-Add-hacky-generic-altmode.patch"     "1vldwg3zwrx2ppqgbhc91l48nfmjkmwwdsyq6mq6f3l1cwfdn62q")
-    (nhp "0024-arm64-dts-rockchip-setup-USB-type-c-port-as-dual-dat.patch"         "0zwwyhryghafga36mgnazn6gk88m2rvs8ng5ykk4hhg9pi5bgzh9")
-    (nhp "0026-arm64-dts-rockchip-add-typec-extcon-hack.patch"                     "1kri47nkm6qgsqgkxzgy6iwhpajcx9xwd4rf8dldr6prb9f6iv3p")
-    (nhp "pbp-2d-fix.patch"                                                        "1hwd6clk1qnjyd4jl7kjn9pnilijz4brh1p5dnv8jzr2ajx2346j")
+    # https://gitlab.manjaro.org/manjaro-arm/packages/core/linux
+    (manjaroArmPatch "0005-drm-bridge-analogix_dp-Add-enable_psr-param.patch"                  "0a7r2fqir98125dqfy8whafmcyawvqkk8yn96596xsqzmr0ki2jv")
+    (manjaroArmPatch "0009-typec-displayport-some-devices-have-pin-assignments-reversed.patch" "02dbkjkr4x407cysr9b0ps34izhq7p3gk9q7rz5abmazgcz62y4g")
+    (manjaroArmPatch "0010-usb-typec-add-extcon-to-tcpm.patch"                                 "0h3p1hxc54jh7dplc21w59cksddlgz1f2yqw2nf4w0syxy4qijn3")
+    (manjaroArmPatch "0011-arm64-rockchip-add-DP-ALT-rockpro64.patch"                          "03k13jgcnz7wmks1y1fgzpjj2yvi114cbvprmnkyf8xrjns7x5q0")
+    (manjaroArmPatch "0012-ayufan-drm-rockchip-add-support-for-modeline-32MHz-e.patch"         "0z51whv0bjj45l5z3q4v0rqdvz62dh4qg8ccd87la9ga8y1v14cy")
+    (manjaroArmPatch "0013-rk3399-rp64-pcie-Reimplement-rockchip-PCIe-bus-scan-delay.patch"    "04pgcikc18bihkdqi56l0ivza12a9wq8r40gz25y57p1is9vikp9")
+    (manjaroArmPatch "0001-phy-rockchip-typec-Set-extcon-capabilities.patch"                   "0pqq856g0yndxvg9ipbx1jv6j4ldvapgzvxzvpirygc7f0wdrz49")
+    (manjaroArmPatch "0002-usb-typec-altmodes-displayport-Add-hacky-generic-altmode.patch"     "1vldwg3zwrx2ppqgbhc91l48nfmjkmwwdsyq6mq6f3l1cwfdn62q")
+    (manjaroArmPatch "0003-arm64-dts-rockchip-add-typec-extcon-hack.patch"                     "1kri47nkm6qgsqgkxzgy6iwhpajcx9xwd4rf8dldr6prb9f6iv3p")
+    (manjaroArmPatch "0004-arm64-dts-rockchip-setup-USB-type-c-port-as-dual-data-role.patch"   "0zwwyhryghafga36mgnazn6gk88m2rvs8ng5ykk4hhg9pi5bgzh9")
   ]);
 })
 //
