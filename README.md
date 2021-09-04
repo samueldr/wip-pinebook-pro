@@ -119,6 +119,11 @@ Note that the default U-Boot build does not do anything with LED on startup.
 >
 > It is unclear how to identify said hardware from a running system.
 
+To determine which keyboard controller you have, you will need to disassemble
+the Pinebook Pro as per [the Pine64
+wiki](https://wiki.pine64.org/wiki/Pinebook_Pro#Keyboard), and make sure that
+the IC next to the U23 marking on the main board is an **SH68F83**.
+
 ```
  $ nix-build -A pkgs.pinebookpro-keyboard-updater
  $ sudo ./result/bin/updater step-1 <iso|ansi>
