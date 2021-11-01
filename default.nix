@@ -1,4 +1,4 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? (import ./pkgs.nix) {} }:
 
 let pkgs' = pkgs; in
 let
