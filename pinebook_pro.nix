@@ -6,7 +6,7 @@
     (import ./overlay.nix)
   ];
 
-  boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_pinebookpro_latest;
+  boot.kernelPackages = lib.mkDefault pkgs.linuxPackages_pinebookpro_lts;
 
   # This list of modules is not entirely minified, but represents
   # a set of modules that is required for the display to work in stage-1.
