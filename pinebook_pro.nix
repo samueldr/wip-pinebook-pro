@@ -41,7 +41,7 @@
     "rtc_rk808"
   ];
 
-  services.udev.extraHwdb = lib.concatStrings [
+  services.udev.extraHwdb = lib.mkMerge [
     # https://gitlab.manjaro.org/manjaro-arm/packages/community/pinebookpro-post-install/blob/master/10-usb-kbd.hwdb
     ''
       evdev:input:b0003v258Ap001E*
