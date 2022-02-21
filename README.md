@@ -48,37 +48,6 @@ A [workaround exists](https://github.com/Tow-Boot/Tow-Boot/commit/818cae1b84a770
 and is built in recent Tow-Boot (no prebuilt releases at this time).
 
 
-## Image build
-
-> **NOTE**: These images will be built without a *Platform Firmware*.
-
-### SD image
-
-```
- $ nix-build -A sdImage
-```
-
-### ISO image
-
-```
- $ nix-build -A isoImage
-```
-
-## Note about cross-compilation
-
-This will automatically detect the need for cross-compiling or not.
-
-When cross-compiled, all caveats apply. Here this mainly means that the kernel
-will need to be re-compiled on the device on the first nixos-rebuild switch,
-while most other packages can be fetched from the cache.
-
-For cross-compilation, you might have to provide a path to a known-good Nixpkgs
-checkout. *(Left as an exercis to the reader.)*
-
-```
- $ NIX_PATH=nixpkgs=/path/to/known/working/cross-compilation-friendly/nixpkgs
-```
-
 ## *Platform Firmware*
 
 > **NOTE**: The previously available customized *U-Boot* from this repository
