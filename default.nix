@@ -28,8 +28,6 @@ in
 {
   inherit (base) pkgs;
 
-  kernel_lts    = base.pkgs.linuxPackages_pinebookpro_lts.kernel;
-
   isoImage = (buildConfig {
     configuration = (fromPkgs "nixos/modules/installer/cd-dvd/installation-cd-minimal.nix");
   }).config.system.build.isoImage;
