@@ -2,7 +2,7 @@
 
 stdenv.mkDerivation {
   pname = "pinebook-pro-keyboard-updater";
-  version = "2020-01-22";
+  version = "2021-07-28";
 
   nativeBuildInputs = [
     xxd
@@ -18,9 +18,9 @@ stdenv.mkDerivation {
   '';
 
   src = fetchFromGitHub {
-    owner = "jackhumbert";
+    owner = "dragan-simic";
     repo = "pinebook-pro-keyboard-updater";
-    rev = "10535c84ee599d3225b02a391c6eb2f9d8d5cdbe";
-    sha256 = "1kk4qzliqn1r8vfx8zdfpkpqazhxr4v2baahhgmlsblh0cm1cxnc";
+    rev = "bd8d2ea48992b3e6ddd0b9435d21b74cdcf97224";
+    hash = "sha256-3+Qsa5lk1EJrLvPSyWthqBMTqJCigbJSmnsS6hdu+w8=";
   };
 }
