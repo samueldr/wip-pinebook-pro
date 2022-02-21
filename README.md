@@ -50,7 +50,7 @@ and is built in recent Tow-Boot (no prebuilt releases at this time).
 
 ## Image build
 
-> **NOTE**: These images will be built without an *Initial Boot Firmware*.
+> **NOTE**: These images will be built without a *Platform Firmware*.
 
 ### SD image
 
@@ -79,7 +79,7 @@ checkout. *(Left as an exercis to the reader.)*
  $ NIX_PATH=nixpkgs=/path/to/known/working/cross-compilation-friendly/nixpkgs
 ```
 
-## *Initial Boot Firmware*
+## *Platform Firmware*
 
 > **NOTE**: The previously available customized *U-Boot* from this repository
 > are not available anymore.
@@ -91,7 +91,7 @@ I highly suggest installing *Tow-Boot* to the SPI Flash.
  - https://github.com/Tow-Boot/Tow-Boot
 
 Having the firmware installed to SPI makes the device act basically like a
-normal computer. No need for weird incantations to setup the initial boot
+normal computer. No need for weird incantations to setup the platform boot
 firmware.
 
 Alternatively, starting from the *Tow-Boot* disk image on eMMC is easier to
