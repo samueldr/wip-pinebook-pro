@@ -28,7 +28,6 @@ in
 {
   inherit (base) pkgs;
 
-  kernel_latest = base.pkgs.linuxPackages_pinebookpro_latest.kernel;
   kernel_lts    = base.pkgs.linuxPackages_pinebookpro_lts.kernel;
 
   isoImage = (buildConfig {
