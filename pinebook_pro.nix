@@ -26,6 +26,7 @@
     "dw_hdmi"
     "dw_mipi_dsi"
     "gpu_sched"
+    "panel_edp"
     "panel_simple"
     "panfrost"
     "pwm_bl"
