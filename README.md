@@ -37,15 +37,11 @@ using GRUB.
 
 #### *EFI* and poweroff
 
-~~When booted using EFI, the system will not power off. It will stay seemingly
-stuck with the LED and display turned off.~~
-
-~~Power it off by holding the power button for a while (10-15 seconds).~~
-
-~~Otherwise you might have a surprise and find the battery is flat!~~
+When booted using EFI, the system will not power off. It will stay seemingly
+stuck with the LED and display turned off.
 
 A [workaround exists](https://github.com/Tow-Boot/Tow-Boot/commit/818cae1b84a7702f2a509927f2819900c2881979#diff-20f50d9d8d5d6c059b87ad66fbc5df26d9fc46251763547ca9bdcc75564a4368),
-and is built in recent Tow-Boot (no prebuilt releases at this time).
+and is built in recent Tow-Boot (make sure your release is 2021.10-004 or more recent).
 
 
 ## *Platform Firmware*
